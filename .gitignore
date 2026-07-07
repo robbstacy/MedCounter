@@ -1,0 +1,34 @@
+# Android / Android Studio
+*.apk
+*.aab
+*.ap_
+*.dex
+*.class
+bin/
+gen/
+out/
+build/
+.gradle/
+local.properties
+proguard/
+captures/
+.externalNativeBuild/
+.cxx/
+
+# IntelliJ / Android Studio project files
+*.iml
+.idea/
+
+# Signing — NEVER commit keystores or their passwords
+*.jks
+*.keystore
+keystore.properties
+
+# Logs and OS cruft
+*.log
+.DS_Store
+Thumbs.db
+
+# App data exports (contain personal medication data — keep out of the repo)
+medcounter_*.csv
+medcounter_*.txt
