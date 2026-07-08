@@ -12,6 +12,14 @@ These live in the Replit account **@RobbStacy** and are built/iterated by Replit
 | **Puro Journal** | 2026-07-07 | Active (cigar journal — an idea dating back to a 2024 Android sketch). Same: deploy from Replit when ready. |
 | **day-1-printing-start** | 2026-05-06 | Older 3D-printing starter project; superseded by the Drive-based design work below. Archive or delete if unused. |
 
+## PuroVida (GitHub)
+
+Cigar journal app in `robbstacy/PuroVida` — the grown-up sibling of the Puro Journal Replit sketch.
+
+- `main` — Flutter implementation (current app), with the original Expo/React Native version preserved on the `react-native` branch.
+- `claude/native-android-rebuild` — native Kotlin/Jetpack Compose rebuild in `native-android/` (2026-07-08); engine unit tests pass, needs a first build/run in Android Studio.
+- Optional AI backend (`server/api.js`, OpenAI-powered lookup + photo identify) is shared by both implementations; everything else is fully local on-device.
+
 ## 3D printing (Google Drive)
 
 - **D3P folder** (`Drive > D3P`) — 3D-printing project home.
