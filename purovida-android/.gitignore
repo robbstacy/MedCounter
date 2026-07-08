@@ -1,0 +1,17 @@
+# Gradle
+.gradle/
+build/
+*/build/
+
+# Android Studio / IntelliJ
+.idea/
+*.iml
+.kotlin/
+captures/
+
+# Local configuration (SDK path, API base URL, signing secrets)
+local.properties
+
+# Keystores — never commit
+*.jks
+*.keystore

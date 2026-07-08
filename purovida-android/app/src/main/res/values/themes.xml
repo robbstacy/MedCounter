@@ -1,0 +1,10 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <!-- Always-dark app; the splash window matches the Compose background. -->
+    <style name="Theme.PuroVida" parent="android:Theme.Material.NoActionBar">
+        <item name="android:windowBackground">#0D0A06</item>
+        <item name="android:statusBarColor">#0D0A06</item>
+        <item name="android:navigationBarColor">#100C07</item>
+        <item name="android:windowLightStatusBar">false</item>
+    </style>
+</resources>
