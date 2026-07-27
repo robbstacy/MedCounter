@@ -4,7 +4,7 @@ using System.IO;
 using System.Security.Cryptography;
 using System.Text;
 
-namespace MD5DeepGui
+namespace HashSidekick
 {
     // Multi-algorithm, single-pass file hashing, mirroring how md5deep's
     // sibling tools (md5deep, sha1deep, sha256deep, ...) each cover one

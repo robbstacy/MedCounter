@@ -1,9 +1,9 @@
 @echo off
 rem ---------------------------------------------------------------------------
-rem  MD5Deep GUI - zero-install build for Windows 10/11
+rem  Hash Sidekick - zero-install build for Windows 10/11
 rem  Uses the C# compiler that ships with the .NET Framework 4.8 runtime,
 rem  which is preinstalled on Windows 11 Pro. No SDK or Visual Studio needed.
-rem  Just double-click this file; it produces MD5DeepGUI.exe next to it.
+rem  Just double-click this file; it produces HashSidekick.exe next to it.
 rem ---------------------------------------------------------------------------
 setlocal
 set CSC=%WINDIR%\Microsoft.NET\Framework64\v4.0.30319\csc.exe
@@ -18,7 +18,7 @@ if not exist "%CSC%" (
 )
 
 "%CSC%" /nologo /target:winexe /optimize+ ^
-    /out:"%~dp0MD5DeepGUI.exe" ^
+    /out:"%~dp0HashSidekick.exe" ^
     /win32manifest:"%~dp0app.manifest" ^
     /r:System.dll /r:System.Core.dll /r:System.Drawing.dll /r:System.Windows.Forms.dll ^
     "%~dp0src\*.cs"
@@ -30,5 +30,5 @@ if errorlevel 1 (
     exit /b 1
 )
 echo.
-echo Build OK: %~dp0MD5DeepGUI.exe
+echo Build OK: %~dp0HashSidekick.exe
 pause

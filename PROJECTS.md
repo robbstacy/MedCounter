@@ -23,11 +23,11 @@ These live in the Replit account **@RobbStacy** and are built/iterated by Replit
 - **Parts list for quote**: `Drive > AI-Workstation-Parts-List.pdf` (2026-06-30) — Core Ultra 9 285K, Z890, 2× RTX 5060 Ti 16GB, 64GB DDR5, 8TB NVMe total, 1500W PSU, Lancool 216, Windows 11 Pro, with build instructions for the shop.
 - Status: ready to send to a PC shop for a quote. Dual 16GB GPUs = 32GB VRAM for local LLM inference.
 
-## MD5Deep GUI (Windows)
+## Hash Sidekick (Windows)
 
-- Native Windows 11 WinForms front-end for the md5deep hashing workflow (recursive MD5/SHA-1/SHA-256/SHA-512, known-hash matching, md5deep/hashdeep-compatible export). Credits Jesse Kornblum, the original md5deep author; public domain like the original.
+- Native Windows 11 WinForms sidekick for Jesse Kornblum's md5deep hashing workflow (recursive MD5/SHA-1/SHA-256/SHA-512, known-hash matching, md5deep/hashdeep-compatible export). Deliberately NOT named "md5deep-anything" — all credit deferred to Jesse (a personal friend of Robb's); public domain like the original.
 - Builds with zero installs via `build.bat` (uses the C# compiler bundled with Windows 11's .NET Framework 4.8) or with the .NET 8 SDK.
-- **Home: should be its own repo `robbstacy/md5deep-gui` — not yet created** (Claude's GitHub integration can't create repos). Code is staged at `md5deep-gui/` on MedCounter branch `claude/md5deep-windows-gui-mvo3x9`; see `_STAGING_NOTE.md` there for the two-step move once the empty repo exists.
+- **Home: should be its own repo `robbstacy/hash-sidekick` — not yet created** (Claude's GitHub integration can't create repos). Code is staged at `hash-sidekick/` on MedCounter branch `claude/md5deep-windows-gui-mvo3x9`; see `_STAGING_NOTE.md` there for the two-step move once the empty repo exists.
 
 ## CloudBrain
 

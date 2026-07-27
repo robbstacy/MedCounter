@@ -4,8 +4,8 @@
     <OutputType>WinExe</OutputType>
     <TargetFramework>net8.0-windows</TargetFramework>
     <UseWindowsForms>true</UseWindowsForms>
-    <RootNamespace>MD5DeepGui</RootNamespace>
-    <AssemblyName>MD5DeepGUI</AssemblyName>
+    <RootNamespace>HashSidekick</RootNamespace>
+    <AssemblyName>HashSidekick</AssemblyName>
     <!-- Assembly metadata (including the credit to Jesse Kornblum) lives in
          src/Program.cs, so suppress the SDK's auto-generated attributes. -->
     <GenerateAssemblyInfo>false</GenerateAssemblyInfo>
