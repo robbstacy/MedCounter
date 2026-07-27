@@ -6,6 +6,7 @@ When I correct you or you catch yourself making a mistake, before continuing, ad
 - Never commit real medication data (the `medcounter_*` exports or anything naming family members' prescriptions) to this repo — use demo data for screenshots, examples, and tests.
 - Never commit keystores (`*.jks`, `*.keystore`) or their passwords; they are covered by .gitignore but check `git status` before pushing.
 - Any feature suggestion must respect the app's core promise: 100% local, no network, no accounts, no third-party SDKs. Reject cloud-sync-style ideas unless Robb explicitly changes that policy.
+- New software projects get their own separate GitHub repo — never a folder inside an existing project's repo — unless Robb directs otherwise. (If tooling can't create the repo, stage the work on a task branch, flag it clearly, and ask Robb to create the repo.)
 
 # PROJECT CONTEXT
 - Med Counter is a local-only Android medication inventory/refill tracker; see PROJECT_STATUS.md for the full picture and ROADMAP.md for the launch plan.
