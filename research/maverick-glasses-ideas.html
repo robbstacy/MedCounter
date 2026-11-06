@@ -1,0 +1,518 @@
+<title>Maverick Project Pitches</title>
+<meta name="claude:viewport-fit-sides" content="cover">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wght@12..96,500;12..96,700&family=IBM+Plex+Sans:wght@400;500;600&family=Barlow+Semi+Condensed:wght@500;600;700&family=IBM+Plex+Mono:wght@500&display=swap">
+<style>
+/* Layout: a lab notebook of ten project cards; each card pairs the pitch with a lens view of the in-lens display. */
+:root{
+  --bg:#f3f5f8; --surface:#ffffff; --fg:#141a26; --muted:#566074; --line:#d9dee8;
+  --accent:#2747d6; --on-accent:#ffffff; --accent-soft:#e4e9fc; --pro:#8a3fd1; --pro-soft:#f1e7fb;
+  --display:"Bricolage Grotesque", "Segoe UI", system-ui, sans-serif;
+  --body:"IBM Plex Sans", system-ui, -apple-system, sans-serif;
+  --mono:"IBM Plex Mono", ui-monospace, Menlo, monospace;
+  --hud:"Barlow Semi Condensed", "Arial Narrow", system-ui, sans-serif;
+  /* HUD light colours stay the same in both themes: they are the glasses' own pixels */
+  --h-white:#f4f8ff; --h-cyan:#5fe3ff; --h-green:#5dff9e; --h-amber:#ffc24a; --h-red:#ff5d5d; --h-violet:#c79bff;
+}
+@media (prefers-color-scheme: dark){:root:not([data-theme="light"]){
+  --bg:#0f131b; --surface:#171c27; --fg:#e8ecf4; --muted:#9aa4b8; --line:#2a3242;
+  --accent:#8ea4ff; --on-accent:#0f131b; --accent-soft:#1f2a4d; --pro:#c79bff; --pro-soft:#2d1f40; color-scheme:dark}}
+:root[data-theme="dark"]{
+  --bg:#0f131b; --surface:#171c27; --fg:#e8ecf4; --muted:#9aa4b8; --line:#2a3242;
+  --accent:#8ea4ff; --on-accent:#0f131b; --accent-soft:#1f2a4d; --pro:#c79bff; --pro-soft:#2d1f40; color-scheme:dark}
+
+*{box-sizing:border-box}
+body{background:var(--bg);color:var(--fg);font:16px/1.55 var(--body);margin:0}
+.wrap{max-width:1120px;margin:0 auto;padding-block:40px 80px;
+  padding-left:max(16px, env(safe-area-inset-left, 0px));padding-right:max(16px, env(safe-area-inset-right, 0px))}
+h1,h2,h3{font-family:var(--display);text-wrap:balance;margin:0;line-height:1.1}
+h1{font-size:clamp(2rem,5vw,3.2rem);font-weight:700;letter-spacing:-.02em}
+h2{font-size:clamp(1.5rem,3vw,2rem);font-weight:700}
+h3{font-size:1.35rem;font-weight:700}
+p{margin:0}
+.eyebrow{font:500 .75rem/1 var(--mono);letter-spacing:.12em;text-transform:uppercase;color:var(--muted)}
+.lede{max-width:65ch;color:var(--muted);font-size:1.08rem}
+header{display:grid;gap:16px;margin-bottom:32px}
+
+.facts{display:grid;grid-template-columns:repeat(auto-fit,minmax(230px,1fr));gap:1px;background:var(--line);
+  border:1px solid var(--line);border-radius:10px;overflow:hidden;margin-bottom:20px}
+.fact{background:var(--surface);padding:14px 16px;display:grid;gap:4px}
+.fact b{font:600 .95rem var(--body)}
+.fact span{color:var(--muted);font-size:.88rem}
+.note{font-size:.88rem;color:var(--muted);max-width:80ch;margin-bottom:40px}
+
+.toolbar{display:flex;flex-wrap:wrap;gap:12px;align-items:center;justify-content:space-between;
+  position:sticky;top:env(safe-area-inset-top,0px);z-index:5;background:var(--bg);padding-block:12px;border-bottom:1px solid var(--line);margin-bottom:28px}
+.seg{display:inline-flex;border:1px solid var(--line);border-radius:999px;padding:3px;background:var(--surface)}
+.seg button{font:500 .85rem var(--body);border:0;background:none;color:var(--muted);padding:7px 14px;border-radius:999px;cursor:pointer}
+.seg button[aria-pressed="true"]{background:var(--fg);color:var(--bg)}
+.seg button:focus-visible,.copy:focus-visible{outline:2px solid var(--accent);outline-offset:2px}
+.legend{font-size:.85rem;color:var(--muted)}
+
+.section-head{display:grid;gap:6px;margin:48px 0 20px}
+.section-head p{color:var(--muted);max-width:65ch}
+
+.idea{display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1.15fr);gap:28px;align-items:start;
+  padding-block:28px;border-top:1px solid var(--line)}
+@media (max-width:820px){.idea{grid-template-columns:1fr}}
+.idea .text{display:grid;gap:12px;min-width:0}
+.idea .tag-id{font:500 .78rem var(--mono);color:var(--accent)}
+.pitch{font-size:1.02rem}
+.chips{display:flex;flex-wrap:wrap;gap:6px}
+.chip{font:500 .74rem var(--mono);padding:3px 8px;border-radius:5px;background:var(--accent-soft);color:var(--accent)}
+.chip.pro{background:var(--pro-soft);color:var(--pro)}
+dl{margin:0;display:grid;grid-template-columns:auto 1fr;gap:6px 14px;font-size:.92rem}
+dt{font-weight:600}
+dd{margin:0;color:var(--muted)}
+
+/* ---------- lens mockups ---------- */
+.lens{position:relative;aspect-ratio:16/10;max-width:100%;border-radius:22px;overflow:hidden;container-type:inline-size;
+  background:#20262f;box-shadow:inset 0 0 0 1px rgba(255,255,255,.06),0 10px 30px -18px rgba(10,20,40,.55)}
+.lens::after{content:"";position:absolute;inset:0;border-radius:22px;pointer-events:none;
+  box-shadow:inset 0 0 60px 10px rgba(0,0,0,.35)}
+.w{position:absolute}
+.hud{position:absolute;left:14%;right:14%;top:16%;bottom:16%;font-family:var(--hud);color:var(--h-white);
+  text-shadow:0 0 .4cqw rgba(0,0,0,.6)}
+.hud .fov{position:absolute;inset:0;border:1px dashed rgba(255,255,255,.22);border-radius:6px}
+.hud .fov::before{content:"22° display area";position:absolute;right:6px;bottom:-1.9cqw;font:500 1.3cqw var(--mono);color:rgba(255,255,255,.45);letter-spacing:.06em}
+.cap{position:absolute;left:12px;top:10px;font:500 1.5cqw var(--mono);letter-spacing:.08em;color:rgba(255,255,255,.55);text-transform:uppercase;z-index:2}
+.el{position:absolute}
+.card{background:rgba(8,14,26,.55);border:1px solid rgba(255,255,255,.18);border-radius:1cqw;padding:1.2cqw 1.6cqw}
+.big{font-size:3.6cqw;font-weight:700;line-height:1}
+.mid{font-size:2.4cqw;font-weight:600;line-height:1.15}
+.sm{font-size:1.8cqw;font-weight:500;line-height:1.2;opacity:.9}
+.c-cyan{color:var(--h-cyan)}.c-green{color:var(--h-green)}.c-amber{color:var(--h-amber)}.c-red{color:var(--h-red)}.c-violet{color:var(--h-violet)}
+.box{position:absolute;border:.35cqw solid var(--h-cyan);border-radius:.8cqw}
+.gaze{position:absolute;width:2.4cqw;height:2.4cqw;border-radius:50%;border:.35cqw solid var(--h-violet);transform:translate(-50%,-50%)}
+.gaze::after{content:"";position:absolute;inset:30%;border-radius:50%;background:var(--h-violet)}
+
+/* display-only mode: what the OLED actually emits. Black pixels are see-through. */
+body.display-only .w{display:none}
+body.display-only .lens{background:#000}
+body.display-only .lens::after{box-shadow:none}
+body.display-only .card{background:transparent}
+body.display-only .hud{text-shadow:none}
+
+/* pitch box */
+.apply{margin-top:56px;padding:24px;border:1px solid var(--line);border-radius:12px;background:var(--surface);display:grid;gap:14px}
+.apply pre{white-space:pre-wrap;font:400 .92rem/1.6 var(--body);margin:0;padding:16px;border-radius:8px;background:var(--bg);border:1px solid var(--line);max-width:80ch}
+.copy{justify-self:start;font:600 .88rem var(--body);background:var(--accent);color:var(--on-accent);border:0;border-radius:8px;padding:9px 16px;cursor:pointer}
+.sources{margin-top:40px;font-size:.85rem;color:var(--muted)}
+.sources ul{padding-left:18px;margin:8px 0 0;display:grid;gap:4px}
+.sources a{color:var(--accent)}
+@media (prefers-reduced-motion:no-preference){
+  .pulse{animation:pulse 1.6s ease-in-out infinite}
+  @keyframes pulse{50%{opacity:.35}}
+}
+</style>
+
+<div class="wrap">
+<header>
+  <span class="eyebrow">Everysight Maverick AI / AI Pro · SDK project slate</span>
+  <h1>Ten things worth building for Maverick</h1>
+  <p class="lede">Five AI projects and five AR projects for Maverick AI glasses, each with a mockup of the in-lens display. They use what the hardware does well: a bright full-colour display, the camera as an AI sensor, eye tracking on the Pro, and a phone that does the heavy work.</p>
+</header>
+
+<div class="facts" aria-label="Key Maverick facts">
+  <div class="fact"><b>Display</b><span>Sony full-colour micro-OLED, &gt;5000 nits, 22° field of view</span></div>
+  <div class="fact"><b>Weight and battery</b><span>47 g, 8+ hours with the display on, IP55, takes prescription lenses</span></div>
+  <div class="fact"><b>Camera</b><span>An AI sensor that streams frames to your app. It is not meant for photos or video.</span></div>
+  <div class="fact"><b>Eye tracking</b><span>AI Pro only (GazeIntent). Early hands-on reviews say it is sensitive to fit.</span></div>
+  <div class="fact"><b>SDK</b><span>Kotlin Multiplatform (Maven and Swift Package). No built-in AI, so you bring your own model or provider. Currently alpha/beta.</span></div>
+  <div class="fact"><b>Access</b><span>Developer Edition is $399 with a 1-year licence tied to one pair. Delivery takes about 4 weeks.</span></div>
+</div>
+<p class="note">The published specs don't give a pixel resolution, so the mockups are drawn to proportion, not pixel-exact. Dark areas on the micro-OLED are see-through, so every design keeps text sparse and bright. Switch to “Display only” to see just the light the glasses emit.</p>
+
+<div class="toolbar">
+  <div class="seg" role="group" aria-label="Mockup view">
+    <button id="v-world" type="button" aria-pressed="true">Through the lens</button>
+    <button id="v-display" type="button" aria-pressed="false">Display only</button>
+  </div>
+  <span class="legend"><span class="chip">feature</span> SDK feature used &nbsp; <span class="chip pro">AI Pro</span> needs eye tracking</span>
+</div>
+
+<!-- ===================== AI ===================== -->
+<div class="section-head">
+  <span class="eyebrow">Part one</span>
+  <h2>AI projects</h2>
+  <p>Projects where the camera, microphone or gaze sends context to a model and the display shows a short answer.</p>
+</div>
+
+<!-- AI 1 -->
+<article class="idea">
+  <div class="text">
+    <span class="tag-id">AI · 1</span>
+    <h3>Pill Check</h3>
+    <p class="pitch">Hold up a pill bottle and the glasses confirm it is the right medicine and the right time. Everything is checked against your Med Counter list over Bluetooth, and you see the dose, the count left and the refill date.</p>
+    <div class="chips"><span class="chip">camera frames</span><span class="chip">on-phone OCR</span><span class="chip">touch: mark taken</span><span class="chip">no cloud</span></div>
+    <dl>
+      <dt>Why it stands out</dt><dd>It ties to Med Counter, an app you're already launching, and medication safety is a serious use case for a reviewer to see.</dd>
+      <dt>Watch out</dt><dd>Read labels on the phone with no network call, so Med Counter stays 100% local. Build it as a separate companion so the main app stays free of SDKs.</dd>
+      <dt>First milestone</dt><dd>Match the label text to a local list, then show one confirmation card.</dd>
+    </dl>
+  </div>
+  <div class="lens" aria-label="Mockup: Pill Check">
+    <span class="cap">Kitchen · evening</span>
+    <div class="w" style="inset:0;background:linear-gradient(180deg,#5b5146 0%,#7a6b5a 58%,#3a332c 58%,#2b2520 100%)"></div>
+    <div class="w" style="left:8%;top:22%;width:20%;height:30%;background:linear-gradient(#cfd8e0,#9fb0bf);border-radius:4px;opacity:.5"></div>
+    <div class="w" style="left:44%;top:30%;width:14%;height:9%;background:#f2f2f2;border-radius:6px 6px 2px 2px"></div>
+    <div class="w" style="left:44.5%;top:38%;width:13%;height:30%;background:linear-gradient(90deg,#c56a1f,#e8933d 45%,#b85d17);border-radius:3px"></div>
+    <div class="w" style="left:45.5%;top:47%;width:11%;height:12%;background:#f8f5ee;border-radius:2px"></div>
+    <div class="w" style="left:38%;top:58%;width:28%;height:30%;background:#c99b7d;border-radius:40% 40% 10% 10%"></div>
+    <div class="hud"><div class="fov"></div>
+      <div class="box" style="left:36%;top:15%;width:23%;height:60%"></div>
+      <div class="el sm c-cyan" style="left:36%;top:4%">BOTTLE MATCHED</div>
+      <div class="el card" style="left:63%;top:12%;width:36%">
+        <div class="mid">Atorvastatin 20 mg</div>
+        <div class="sm" style="margin-top:.6cqw">Evening dose · 1 tablet</div>
+        <div class="big c-green" style="margin-top:1cqw">Take now ✓</div>
+        <div class="sm" style="margin-top:1cqw">28 left · refill by Nov 30</div>
+      </div>
+      <div class="el sm" style="left:63%;bottom:4%;opacity:.7">Tap temple to mark taken</div>
+      <div class="el sm" style="left:2%;bottom:4%;opacity:.55">demo data</div>
+    </div>
+  </div>
+</article>
+
+<!-- AI 2 -->
+<article class="idea">
+  <div class="text">
+    <span class="tag-id">AI · 2</span>
+    <h3>Look &amp; Ask</h3>
+    <p class="pitch">Look at one word, part or symbol and tap. The camera frame and your gaze point go to a model, which explains that exact thing and not the whole scene. It works on manuals, error screens, wiring diagrams and foreign-language signs.</p>
+    <div class="chips"><span class="chip pro">AI Pro · gaze point</span><span class="chip">camera frames</span><span class="chip">touch</span><span class="chip">your AI provider</span></div>
+    <dl>
+      <dt>Why it stands out</dt><dd>It shows off GazeIntent, Maverick's main advantage over camera-only glasses. Gaze turns a vague “what is this?” into a precise question.</dd>
+      <dt>Watch out</dt><dd>Gaze accuracy depends on fit, so crop a generous region around the gaze point and let the model pick the target.</dd>
+      <dt>First milestone</dt><dd>Gaze point plus a cropped frame, returning a two-line answer card.</dd>
+    </dl>
+  </div>
+  <div class="lens" aria-label="Mockup: Look and Ask">
+    <span class="cap">Printer menu · garage</span>
+    <div class="w" style="inset:0;background:linear-gradient(160deg,#2c3138,#1b1f24)"></div>
+    <div class="w" style="left:24%;top:20%;width:52%;height:56%;background:#0d2a47;border:6px solid #39404a;border-radius:6px"></div>
+    <div class="w" style="left:28%;top:27%;width:40%;font:600 2cqw var(--mono);color:#8fc7ff;line-height:2.1">
+      ▸ Motion<br>▸ Temperature<br>▸ E-steps/mm: 93.0<br>▸ Linear Advance
+    </div>
+    <div class="hud"><div class="fov"></div>
+      <div class="gaze" style="left:42%;top:46%"></div>
+      <div class="el sm c-violet" style="left:46%;top:41%">looking: “E-steps/mm”</div>
+      <div class="el card" style="left:4%;top:64%;width:92%">
+        <div class="mid c-cyan">E-steps = how far the extruder pushes filament per motor step.</div>
+        <div class="sm" style="margin-top:.5cqw">93.0 is stock. Calibrate: mark 120 mm, extrude 100 mm, measure what's left.</div>
+      </div>
+    </div>
+  </div>
+</article>
+
+<!-- AI 3 -->
+<article class="idea">
+  <div class="text">
+    <span class="tag-id">AI · 3</span>
+    <h3>Print Doctor</h3>
+    <p class="pitch">Glance at your 3D printer and a vision model checks the first layers for lifting, stringing or spaghetti. Live temperatures and time remaining come from OctoPrint or Moonraker on your home network.</p>
+    <div class="chips"><span class="chip">camera frames</span><span class="chip">LAN printer API</span><span class="chip">touch: pause print</span></div>
+    <dl>
+      <dt>Why it stands out</dt><dd>It's a niche you know well, with a clear payoff: catch a failed print in minute 3, not hour 3.</dd>
+      <dt>Watch out</dt><dd>Train on your own printer's failure photos. The camera is a sensor, so judge single frames rather than video.</dd>
+      <dt>First milestone</dt><dd>A telemetry card from Moonraker, then add one detector for corner lift.</dd>
+    </dl>
+  </div>
+  <div class="lens" aria-label="Mockup: Print Doctor">
+    <span class="cap">3D printer · first layer</span>
+    <div class="w" style="inset:0;background:linear-gradient(180deg,#3a3f47,#24282e)"></div>
+    <div class="w" style="left:10%;top:56%;width:80%;height:30%;background:linear-gradient(180deg,#1a1d22,#2d3239);transform:perspective(400px) rotateX(48deg);border-radius:4px"></div>
+    <div class="w" style="left:36%;top:60%;width:28%;height:12%;background:#e2e8ef;transform:perspective(400px) rotateX(48deg);border-radius:2px"></div>
+    <div class="w" style="left:47%;top:20%;width:8%;height:28%;background:linear-gradient(#5d636c,#9aa2ad)"></div>
+    <div class="hud"><div class="fov"></div>
+      <div class="box" style="left:55%;top:58%;width:14%;height:20%;border-color:var(--h-amber)"></div>
+      <div class="el sm c-amber" style="left:55%;top:50%">CORNER LIFTING · 72%</div>
+      <div class="el card" style="left:2%;top:4%;width:40%">
+        <div class="sm">Layer 3 / 240</div>
+        <div class="mid" style="margin-top:.4cqw">Nozzle <span class="c-cyan">215°</span> · Bed <span class="c-cyan">60°</span></div>
+        <div class="sm" style="margin-top:.4cqw">2 h 14 m left</div>
+      </div>
+      <div class="el sm" style="right:2%;top:6%;opacity:.75">Hold temple to pause</div>
+    </div>
+  </div>
+</article>
+
+<!-- AI 4 -->
+<article class="idea">
+  <div class="text">
+    <span class="tag-id">AI · 4</span>
+    <h3>Sound Sentry</h3>
+    <p class="pitch">An accessibility tool for people who are deaf or hard of hearing, or anyone wearing headphones. The microphone stream runs through an on-device sound classifier and shows alarms, doorbells, a crying baby or someone saying your name as glanceable icons at the edge of view.</p>
+    <div class="chips"><span class="chip">mic stream</span><span class="chip">on-phone classifier</span><span class="chip">watch haptic</span><span class="chip">all-day battery</span></div>
+    <dl>
+      <dt>Why it stands out</dt><dd>It's useful every day and works well with an 8-hour display. Accessibility apps make a strong case in an SDK application.</dd>
+      <dt>Watch out</dt><dd>Maverick probably can't tell which direction a sound came from, so give the sound type and confidence. Keep audio on the device.</dd>
+      <dt>First milestone</dt><dd>Three sound classes (smoke alarm, doorbell, your name) shown as edge chips.</dd>
+    </dl>
+  </div>
+  <div class="lens" aria-label="Mockup: Sound Sentry">
+    <span class="cap">Living room · headphones on</span>
+    <div class="w" style="inset:0;background:linear-gradient(180deg,#4a5360 0%,#6b7480 62%,#4a4038 62%,#3a322c 100%)"></div>
+    <div class="w" style="left:18%;top:40%;width:44%;height:26%;background:#5a6b7d;border-radius:10px 10px 4px 4px"></div>
+    <div class="w" style="left:66%;top:18%;width:20%;height:30%;background:#1d232b;border:5px solid #11151a"></div>
+    <div class="hud"><div class="fov"></div>
+      <div class="el card pulse" style="left:2%;top:6%;border-color:var(--h-red)">
+        <div class="mid c-red">● SMOKE ALARM</div>
+        <div class="sm">confident · 3 s ago</div>
+      </div>
+      <div class="el card" style="left:2%;bottom:6%;opacity:.8">
+        <div class="sm c-cyan">Doorbell · 4 min ago</div>
+      </div>
+      <div class="el sm" style="right:2%;top:6%;opacity:.7">Watch buzzing ⌚</div>
+    </div>
+  </div>
+</article>
+
+<!-- AI 5 -->
+<article class="idea">
+  <div class="text">
+    <span class="tag-id">AI · 5</span>
+    <h3>Build Buddy</h3>
+    <p class="pitch">A hands-free assembly guide for PC builds, furniture or printer kits. The camera works out which step you're on, highlights the part or connector you need, and moves to the next step when it sees the current one finished.</p>
+    <div class="chips"><span class="chip">camera frames</span><span class="chip">voice: “next”</span><span class="chip">touch</span><span class="chip">your AI provider</span></div>
+    <dl>
+      <dt>Why it stands out</dt><dd>Your hands are busy and your eyes are on the parts, which is exactly the job for a heads-up display. You can try it on your own workstation build.</dd>
+      <dt>Watch out</dt><dd>Make step detection advisory. Voice or a tap always advances the step manually.</dd>
+      <dt>First milestone</dt><dd>A scripted checklist you can advance by voice, then add detection for 3 connectors.</dd>
+    </dl>
+  </div>
+  <div class="lens" aria-label="Mockup: Build Buddy">
+    <span class="cap">Workstation build · step 14</span>
+    <div class="w" style="inset:0;background:#2a2d33"></div>
+    <div class="w" style="left:14%;top:14%;width:62%;height:74%;background:linear-gradient(135deg,#1f3b2c,#14271d);border-radius:4px"></div>
+    <div class="w" style="left:24%;top:24%;width:16%;height:16%;background:#8a8f96;border-radius:3px"></div>
+    <div class="w" style="left:44%;top:22%;width:5%;height:40%;background:#2e3238;border-left:3px solid #555"></div>
+    <div class="w" style="left:66%;top:36%;width:4%;height:28%;background:#e9e9e9;border-radius:2px"></div>
+    <div class="hud"><div class="fov"></div>
+      <div class="box" style="left:67%;top:22%;width:9%;height:46%"></div>
+      <div class="el sm c-cyan" style="left:61%;top:12%">24-PIN ATX</div>
+      <div class="el card" style="left:2%;top:62%;width:60%">
+        <div class="sm">Step 14 of 31</div>
+        <div class="mid" style="margin-top:.4cqw">Connect 24-pin power. Press until the latch clicks.</div>
+      </div>
+      <div class="el sm" style="right:2%;bottom:6%;opacity:.7">Say “next”</div>
+    </div>
+  </div>
+</article>
+
+<!-- ===================== AR ===================== -->
+<div class="section-head">
+  <span class="eyebrow">Part two</span>
+  <h2>AR projects</h2>
+  <p>Projects where the overlay depends on where you look or where you are. They use head orientation, gaze, phone GPS and a paired watch, and some need no AI at all.</p>
+</div>
+
+<!-- AR 1 -->
+<article class="idea">
+  <div class="text">
+    <span class="tag-id">AR · 1</span>
+    <h3>Waypoint Home</h3>
+    <p class="pitch">Drop a pin when you park, or share it with a friend at a festival. A floating chevron and the distance keep pointing to the target as you turn your head, so you never look down at a map.</p>
+    <div class="chips"><span class="chip">head orientation</span><span class="chip">phone GPS</span><span class="chip">low power</span></div>
+    <dl>
+      <dt>Why it stands out</dt><dd>It's simple, reliable and quick to demo. It also proves you can handle the sensor-fusion basics.</dd>
+      <dt>Watch out</dt><dd>The compass drifts near metal and in garages. Blend in the phone's heading and show the error range honestly.</dd>
+      <dt>First milestone</dt><dd>Bearing plus distance to a saved pin, refreshed once per second.</dd>
+    </dl>
+  </div>
+  <div class="lens" aria-label="Mockup: Waypoint Home">
+    <span class="cap">Parking garage · night</span>
+    <div class="w" style="inset:0;background:linear-gradient(180deg,#1b2230 0%,#283244 55%,#3b4150 55%,#20242c 100%)"></div>
+    <div class="w" style="left:6%;top:46%;width:18%;height:14%;background:#3c4556;border-radius:8px 8px 3px 3px"></div>
+    <div class="w" style="left:58%;top:44%;width:22%;height:16%;background:#4b3b3b;border-radius:8px 8px 3px 3px"></div>
+    <div class="w" style="left:0;right:0;top:8%;height:3%;background:repeating-linear-gradient(90deg,#f6f0d0 0 6%,transparent 6% 22%);opacity:.5"></div>
+    <div class="hud"><div class="fov"></div>
+      <svg class="el" style="left:58%;top:22%;width:20%;height:44%" viewBox="0 0 100 100" aria-hidden="true">
+        <path d="M20 10 L80 50 L20 90 L36 50 Z" fill="#5fe3ff"/>
+      </svg>
+      <div class="el" style="left:4%;top:20%">
+        <div class="big c-cyan">240 m</div>
+        <div class="mid" style="margin-top:.6cqw">Your car · Level 3, row F</div>
+        <div class="sm" style="margin-top:.6cqw">Turn right ~40°</div>
+      </div>
+      <div class="el sm" style="left:4%;bottom:5%;opacity:.6">heading ±8°</div>
+    </div>
+  </div>
+</article>
+
+<!-- AR 2 -->
+<article class="idea">
+  <div class="text">
+    <span class="tag-id">AR · 2</span>
+    <h3>Gaze Teleprompter</h3>
+    <p class="pitch">Speaker notes that follow your eyes. They scroll when you reach the end of a line, pause when you look up at the audience, and pick up where you left off when you look back.</p>
+    <div class="chips"><span class="chip pro">AI Pro · gaze</span><span class="chip">touch: skip</span><span class="chip">optional mic for pacing</span></div>
+    <dl>
+      <dt>Why it stands out</dt><dd>It's an original use of eye tracking that phone or camera-only glasses can't do. It could also be a paid app.</dd>
+      <dt>Watch out</dt><dd>Use the horizontal gaze position only with generous thresholds. Tune it with people of different fits.</dd>
+      <dt>First milestone</dt><dd>Scroll when gaze reaches the right edge, and pause when gaze leaves the display.</dd>
+    </dl>
+  </div>
+  <div class="lens" aria-label="Mockup: Gaze Teleprompter">
+    <span class="cap">Conference stage</span>
+    <div class="w" style="inset:0;background:radial-gradient(ellipse at 50% 0%,#5b4a6e 0%,#231d2d 60%,#120f18 100%)"></div>
+    <div class="w" style="left:0;right:0;bottom:0;height:34%;background:repeating-radial-gradient(circle at 10% 120%,#2a2333 0 3%,#1a1520 3% 6%)"></div>
+    <div class="hud"><div class="fov"></div>
+      <div class="el" style="left:4%;right:4%;top:18%;display:grid;gap:1.4cqw">
+        <div class="mid" style="opacity:.35">…so we tested it with twelve families.</div>
+        <div class="mid">Every one of them caught a missed <span class="c-cyan">refill</span></div>
+        <div class="mid" style="opacity:.75">before it became an emergency.</div>
+        <div class="mid" style="opacity:.45">Here's what surprised us.</div>
+      </div>
+      <div class="gaze" style="left:72%;top:42%"></div>
+      <div class="el" style="left:4%;right:4%;bottom:6%;height:.5cqw;background:rgba(255,255,255,.2)"><div style="width:38%;height:100%;background:var(--h-cyan)"></div></div>
+      <div class="el sm" style="right:4%;top:4%;opacity:.7">Slide 6 · 4:12</div>
+    </div>
+  </div>
+</article>
+
+<!-- AR 3 -->
+<article class="idea">
+  <div class="text">
+    <span class="tag-id">AR · 3</span>
+    <h3>Look-Around Desk</h3>
+    <p class="pitch">Panels pinned to directions around you. Turn left for your calendar, look straight ahead for the active print or build, and turn right for home status from Home Assistant on your local network. Turning your head is the only navigation.</p>
+    <div class="chips"><span class="chip">head orientation</span><span class="chip">LAN APIs</span><span class="chip">touch: re-centre</span></div>
+    <dl>
+      <dt>Why it stands out</dt><dd>It gives you spatial screens on a 47 g frame without a headset, and the idea is easy to show in an application video.</dd>
+      <dt>Watch out</dt><dd>Head orientation drifts, so add a one-tap re-centre and keep the panels coarse, about 30° apart.</dd>
+      <dt>First milestone</dt><dd>Three static panels switched by head turn, with smooth handoff between them.</dd>
+    </dl>
+  </div>
+  <div class="lens" aria-label="Mockup: Look-Around Desk">
+    <span class="cap">Home office</span>
+    <div class="w" style="inset:0;background:linear-gradient(180deg,#58606a 0%,#6f7780 60%,#4b3a2e 60%,#3a2d24 100%)"></div>
+    <div class="w" style="left:30%;top:28%;width:40%;height:28%;background:#14181e;border:4px solid #0b0d10;border-radius:4px"></div>
+    <div class="hud"><div class="fov"></div>
+      <div class="el card" style="left:-8%;top:14%;width:28%;opacity:.45"><div class="sm">◂ Calendar</div><div class="mid">2:30 Dentist</div></div>
+      <div class="el card" style="left:26%;top:10%;width:48%;border-color:var(--h-cyan)">
+        <div class="sm c-cyan">AHEAD · NOW</div>
+        <div class="big" style="margin-top:.6cqw">Print 62%</div>
+        <div class="sm" style="margin-top:.6cqw">Bracket v3 · 51 min left</div>
+      </div>
+      <div class="el card" style="left:80%;top:14%;width:28%;opacity:.45"><div class="sm">Home ▸</div><div class="mid c-amber">Garage open</div></div>
+      <div class="el" style="left:30%;right:30%;bottom:8%;height:.4cqw;background:rgba(255,255,255,.25)"></div>
+      <div class="el" style="left:49%;bottom:6.5%;width:2%;height:2%;border-radius:50%;background:var(--h-cyan)"></div>
+      <div class="el sm" style="left:30%;bottom:1%;opacity:.6">−30°</div><div class="el sm" style="right:30%;bottom:1%;opacity:.6">+30°</div>
+    </div>
+  </div>
+</article>
+
+<!-- AR 4 -->
+<article class="idea">
+  <div class="text">
+    <span class="tag-id">AR · 4</span>
+    <h3>Sky Labels</h3>
+    <p class="pitch">Look up at night and see planets, bright stars and constellation lines labelled in place, plus satellite passes such as the ISS. A star catalogue and orbital data are bundled offline, so it works at a dark-sky site with no signal.</p>
+    <div class="chips"><span class="chip">head orientation</span><span class="chip">phone GPS + clock</span><span class="chip">offline catalogue</span></div>
+    <dl>
+      <dt>Why it stands out</dt><dd>A colour display is a real advantage here, and the demo looks great. Black pixels stay see-through, so the real sky stays visible.</dd>
+      <dt>Watch out</dt><dd>Orientation error shows up as mislabelled stars. Label only bright objects and add a quick “centre on Polaris” calibration.</dd>
+      <dt>First milestone</dt><dd>Label the 5 brightest objects, with compass heading and altitude.</dd>
+    </dl>
+  </div>
+  <div class="lens" aria-label="Mockup: Sky Labels">
+    <span class="cap">Backyard · 9:40 pm</span>
+    <div class="w" style="inset:0;background:radial-gradient(ellipse at 50% 120%,#1d2a44 0%,#0a1020 60%,#05070e 100%)"></div>
+    <div class="w" style="inset:0;background-image:radial-gradient(1px 1px at 12% 20%,#fff 50%,transparent 51%),radial-gradient(1px 1px at 30% 70%,#cfe 50%,transparent 51%),radial-gradient(1.5px 1.5px at 64% 30%,#fff 50%,transparent 51%),radial-gradient(1px 1px at 82% 62%,#fff 50%,transparent 51%),radial-gradient(1px 1px at 48% 12%,#dde 50%,transparent 51%),radial-gradient(1px 1px at 90% 18%,#fff 50%,transparent 51%),radial-gradient(1px 1px at 22% 48%,#fff 50%,transparent 51%)"></div>
+    <div class="w" style="left:0;right:0;bottom:0;height:14%;background:#04060a;clip-path:polygon(0 60%,10% 30%,18% 55%,30% 20%,42% 50%,55% 35%,70% 60%,82% 25%,100% 50%,100% 100%,0 100%)"></div>
+    <div class="hud"><div class="fov"></div>
+      <svg class="el" style="inset:0;width:100%;height:100%" viewBox="0 0 100 60" preserveAspectRatio="none" aria-hidden="true">
+        <g stroke="#5fe3ff" stroke-width=".35" fill="none" opacity=".75">
+          <path d="M30 14 L36 22 L33 30 L40 31 L47 30 L44 22 L50 14"/><path d="M33 30 L30 44 M47 30 L50 44"/>
+        </g>
+        <g fill="#5fe3ff"><circle cx="30" cy="14" r=".9"/><circle cx="50" cy="14" r=".9"/><circle cx="36" cy="22" r=".6"/><circle cx="44" cy="22" r=".6"/><circle cx="40" cy="31" r=".6"/><circle cx="33" cy="30" r=".6"/><circle cx="47" cy="30" r=".6"/><circle cx="30" cy="44" r=".9"/><circle cx="50" cy="44" r=".9"/></g>
+        <circle cx="76" cy="20" r="2" fill="none" stroke="#ffc24a" stroke-width=".4"/>
+      </svg>
+      <div class="el mid c-cyan" style="left:52%;top:28%">Orion</div>
+      <div class="el sm" style="left:20%;top:70%">Rigel</div>
+      <div class="el sm" style="left:19%;top:16%">Betelgeuse</div>
+      <div class="el mid c-amber" style="left:80%;top:26%">Jupiter</div>
+      <div class="el card" style="left:58%;top:62%"><div class="sm c-green">ISS pass in 6 min · from W</div></div>
+      <div class="el sm" style="left:2%;bottom:3%;opacity:.7">SE 128° · alt 34°</div>
+    </div>
+  </div>
+</article>
+
+<!-- AR 5 -->
+<article class="idea">
+  <div class="text">
+    <span class="tag-id">AR · 5</span>
+    <h3>Pace Ghost</h3>
+    <p class="pitch">Race your own best run. A ghost marker shows how far ahead or behind you are on the same route, with heart-rate zone from your watch and the next turn. Data is shown only when it matters, so the display stays clear most of the time.</p>
+    <div class="chips"><span class="chip">phone GPS</span><span class="chip">Apple Watch / Wear OS</span><span class="chip">IP55 · 5000 nits</span></div>
+    <dl>
+      <dt>Why it stands out</dt><dd>Everysight started with sport glasses, so reviewers will get it immediately. The ghost race adds something stock fitness apps don't have.</dd>
+      <dt>Watch out</dt><dd>Keep fixed text out of the middle of your view. Show the ghost delta only when it changes by more than 5 seconds.</dd>
+      <dt>First milestone</dt><dd>Replay a GPX and show the live ahead/behind time and heart rate.</dd>
+    </dl>
+  </div>
+  <div class="lens" aria-label="Mockup: Pace Ghost">
+    <span class="cap">Morning run · trail</span>
+    <div class="w" style="inset:0;background:linear-gradient(180deg,#9cc3e6 0%,#d8e7f2 48%,#6f8a55 48%,#3f5530 100%)"></div>
+    <div class="w" style="left:38%;right:38%;top:48%;bottom:0;background:#b9a07a;clip-path:polygon(45% 0,55% 0,100% 100%,0 100%)"></div>
+    <div class="hud"><div class="fov"></div>
+      <div class="el card" style="left:2%;top:4%">
+        <div class="big c-green">−12 s</div>
+        <div class="sm" style="margin-top:.4cqw">ahead of your best</div>
+      </div>
+      <div class="el card" style="right:2%;top:4%;text-align:right">
+        <div class="big">152</div>
+        <div class="sm c-amber" style="margin-top:.4cqw">♥ zone 3</div>
+      </div>
+      <div class="el" style="left:47%;top:44%;width:6%;height:14%;border:.35cqw dashed var(--h-violet);border-radius:50% 50% 20% 20%;opacity:.8"></div>
+      <div class="el sm c-violet" style="left:43%;top:60%">ghost</div>
+      <div class="el card" style="left:2%;bottom:4%"><div class="mid">5:12 /km · 6.4 km</div></div>
+      <div class="el card sm" style="right:2%;bottom:4%">Left fork in 300 m</div>
+    </div>
+  </div>
+</article>
+
+<!-- ===================== apply ===================== -->
+<section class="apply" aria-labelledby="apply-h">
+  <span class="eyebrow">For the SDK request</span>
+  <h2 id="apply-h">Paste-ready application note</h2>
+  <pre id="pitch-text">I'm an independent Android developer. I'm launching Med Counter on Google Play (now in closed testing), a medication inventory and refill tracker that runs 100% on the device. I'd like Maverick AI Pro SDK access to build glanceable, privacy-first tools that only work with an in-lens display and eye tracking.
+
+First build (4–6 weeks): Look &amp; Ask. The user looks at a word, part or label and taps, and the app sends the GazeIntent point and a cropped camera frame to a model and shows a two-line answer. I'll also prototype Gaze Teleprompter (notes that scroll with your eyes and pause when you look up) and Pill Check (on-phone label matching against a local medication list, with no cloud).
+
+Next: Sound Sentry (accessibility alerts from the mic) and Waypoint Home (head-orientation and GPS wayfinding). I'll share fit and gaze-accuracy findings with your team, and I'm happy to publish samples for other developers.</pre>
+  <button class="copy" id="copy-btn" type="button">Copy note</button>
+</section>
+
+<div class="sources">
+  <b>Sources</b>
+  <ul>
+    <li><a href="https://www.kickstarter.com/projects/everysight/maverick-full-color-ai-ar-glasses" target="_blank" rel="noopener">Kickstarter campaign</a></li>
+    <li><a href="https://www.everysight.com/pages/maverick-ai" target="_blank" rel="noopener">Everysight · Maverick AI product page</a></li>
+    <li><a href="https://www.everysight.com/store/maverick" target="_blank" rel="noopener">Maverick Developer Edition</a> · <a href="https://www.everysight.com/pages/faq" target="_blank" rel="noopener">Everysight FAQ</a></li>
+    <li><a href="https://everysight.github.io/maverick-ai-docs/" target="_blank" rel="noopener">Maverick AI / AI Pro SDK portal</a> · <a href="https://github.com/everysight-maverick-AI/sdk" target="_blank" rel="noopener">SDK samples on GitHub</a></li>
+    <li><a href="https://support.everysight.com/hc/en-us/articles/27996896507804-Maverick-AI-AI-Pro-SDK-beta" target="_blank" rel="noopener">Support: SDK beta</a> · <a href="https://support.everysight.com/hc/en-us/articles/27996897835036-Do-Everysight-glasses-have-a-camera" target="_blank" rel="noopener">Support: the camera</a></li>
+    <li><a href="https://gizmodo.com/the-worlds-first-eye-tracking-smart-glasses-are-intriguing-and-unpolished-2000743475" target="_blank" rel="noopener">Gizmodo hands-on with AI Pro eye tracking</a></li>
+  </ul>
+</div>
+</div>
+
+<script>
+(function(){
+  var w=document.getElementById('v-world'), d=document.getElementById('v-display');
+  function set(displayOnly){
+    document.body.classList.toggle('display-only',displayOnly);
+    w.setAttribute('aria-pressed',String(!displayOnly)); d.setAttribute('aria-pressed',String(displayOnly));
+    try{localStorage.setItem('mav-view',displayOnly?'d':'w')}catch(e){}
+  }
+  w.addEventListener('click',function(){set(false)}); d.addEventListener('click',function(){set(true)});
+  try{if(localStorage.getItem('mav-view')==='d')set(true)}catch(e){}
+  var b=document.getElementById('copy-btn'), t=document.getElementById('pitch-text');
+  b.addEventListener('click',function(){
+    var txt=t.textContent;
+    function sel(){var r=document.createRange();r.selectNodeContents(t);var s=getSelection();s.removeAllRanges();s.addRange(r);b.textContent='Selected. Press Ctrl+C'}
+    if(navigator.clipboard&&navigator.clipboard.writeText){navigator.clipboard.writeText(txt).then(function(){b.textContent='Copied'},sel)}else sel();
+  });
+})();
+</script>
