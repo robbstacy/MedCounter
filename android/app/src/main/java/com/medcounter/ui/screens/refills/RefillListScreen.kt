@@ -46,6 +46,8 @@ import com.medcounter.data.RxPhotoStore
 import com.medcounter.domain.RefillCandidate
 import com.medcounter.ui.components.sharePhotos
 import androidx.compose.material3.Switch
+import androidx.compose.material3.Surface
+import androidx.compose.foundation.layout.navigationBarsPadding
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
@@ -77,6 +79,41 @@ fun RefillListScreen(viewModel: RefillListViewModel, onBack: () -> Unit) {
                     }
                 },
             )
+        },
+        bottomBar = {
+            Surface(tonalElevation = 3.dp) {
+                Column(Modifier.navigationBarsPadding().padding(horizontal = 16.dp, vertical = 8.dp)) {
+                    val count = state.selectedIds.count { id -> state.candidates.any { it.item.medication.id == id } }
+                    Text(
+                        if (count == 0) "Tick the medications to refill" else "$count medication${if (count == 1) "" else "s"} in the message",
+                        style = MaterialTheme.typography.labelMedium,
+                    )
+                    Row(horizontalArrangement = Arrangement.spacedBy(8.dp), modifier = Modifier.padding(top = 4.dp)) {
+                        Button(
+                            onClick = { copyToClipboard(context, state.message) },
+                            enabled = state.message.isNotBlank(),
+                            modifier = Modifier.weight(1f),
+                        ) {
+                            Icon(Icons.Default.ContentCopy, contentDescription = null)
+                            Text("  Copy")
+                        }
+                        OutlinedButton(
+                            onClick = {
+                                if (includePhotos && selectedPhotos.isNotEmpty()) {
+                                    sharePhotos(context, selectedPhotos, state.message)
+                                } else {
+                                    shareText(context, state.message)
+                                }
+                            },
+                            enabled = state.message.isNotBlank(),
+                            modifier = Modifier.weight(1f),
+                        ) {
+                            Icon(Icons.Default.Share, contentDescription = null)
+                            Text("  Send…")
+                        }
+                    }
+                }
+            }
         },
     ) { padding ->
         LazyColumn(
@@ -147,32 +184,6 @@ fun RefillListScreen(viewModel: RefillListViewModel, onBack: () -> Unit) {
                     }
                 }
             }
-            item {
-                Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                    Button(
-                        onClick = { copyToClipboard(context, state.message) },
-                        enabled = state.message.isNotBlank(),
-                        modifier = Modifier.weight(1f),
-                    ) {
-                        Icon(Icons.Default.ContentCopy, contentDescription = null)
-                        Text("  Copy")
-                    }
-                    OutlinedButton(
-                        onClick = {
-                            if (includePhotos && selectedPhotos.isNotEmpty()) {
-                                sharePhotos(context, selectedPhotos, state.message)
-                            } else {
-                                shareText(context, state.message)
-                            }
-                        },
-                        enabled = state.message.isNotBlank(),
-                        modifier = Modifier.weight(1f),
-                    ) {
-                        Icon(Icons.Default.Share, contentDescription = null)
-                        Text("  Send…")
-                    }
-                }
-            }
         }
     }
 }
@@ -211,9 +222,9 @@ private fun RefillRow(candidate: RefillCandidate, showPerson: Boolean, checked: 
 private fun copyToClipboard(context: Context, text: String) {
     val clipboard = context.getSystemService(Context.CLIPBOARD_SERVICE) as ClipboardManager
     clipboard.setPrimaryClip(ClipData.newPlainText("Refill list", text))
-    // Android 13+ shows its own confirmation.
+    // Android 13+ shows its own clipboard confirmation; a toast would cover it.
     if (android.os.Build.VERSION.SDK_INT < android.os.Build.VERSION_CODES.TIRAMISU) {
-        Toast.makeText(context, "Refill list copied", Toast.LENGTH_SHORT).show()
+        Toast.makeText(context, "Refill list copied. Long-press in a chat and tap Paste.", Toast.LENGTH_LONG).show()
     }
 }
 
