@@ -40,4 +40,11 @@ class PreferencesManager(context: Context) {
         set(value) {
             prefs.edit().putBoolean("weekly_report_enabled", value).apply()
         }
+
+    /** Name of a [com.medcounter.domain.MedicationSort] value. */
+    var medicationSort: String
+        get() = prefs.getString("medication_sort", "SOONEST_EMPTY") ?: "SOONEST_EMPTY"
+        set(value) {
+            prefs.edit().putString("medication_sort", value).apply()
+        }
 }

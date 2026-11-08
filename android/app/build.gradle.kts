@@ -87,6 +87,8 @@ dependencies {
     ksp(libs.androidx.room.compiler)
     implementation(libs.androidx.work.runtime)
     implementation(libs.kotlinx.coroutines.android)
+    implementation(libs.tesseract4android)
+    implementation(libs.androidx.exifinterface)
 
     testImplementation(libs.junit)
     testImplementation(libs.sqlite.jdbc)

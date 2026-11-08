@@ -11,6 +11,11 @@ dependencyResolutionManagement {
     repositories {
         google()
         mavenCentral()
+        // Tesseract4Android (offline OCR for Rx label scanning) is only published on JitPack.
+        maven {
+            url = uri("https://jitpack.io")
+            content { includeGroup("cz.adaptech.tesseract4android") }
+        }
     }
 }
 

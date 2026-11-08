@@ -1,0 +1,22 @@
+SAMPLE MEDICAL CLINIC
+
+Internal Medicine
+
+Name: Juana Halimbawa Age: 70 Sex: F
+Address: Cebu City Date: 11/03/2026
+
+Rx
+
+1. Amlodipine (Norvasc) 5 mg tab #30
+Sig: 1 tab OD
+
+2. Metformin 500mg #60 Sig: 1 tab BID p.c:
+Refill x2
+
+3. Losartan 50 mg
+#90
+
+Sig: 1/2 tab once a day
+
+Dr. Pedro Santos Reyes, M.D.
+Lic. No. 0123456 PTR No. 7654321

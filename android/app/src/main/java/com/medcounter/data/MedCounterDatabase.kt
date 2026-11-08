@@ -31,7 +31,7 @@ import com.medcounter.data.entity.UsageLogEntity
         TimeSlotEntity::class,
         MedicationDoseTimeEntity::class,
     ],
-    version = 5,
+    version = 6,
     exportSchema = true,
 )
 abstract class MedCounterDatabase : RoomDatabase() {
@@ -44,6 +44,7 @@ abstract class MedCounterDatabase : RoomDatabase() {
     abstract fun medicationDoseTimeDao(): MedicationDoseTimeDao
 
     companion object {
+        /** Identity hash of the v5 schema shipped by the original APK (kept for the recovery test). */
         const val EXPECTED_IDENTITY_HASH = "b34374850426b5710cd0139087c85a1f"
 
         @Volatile
@@ -56,7 +57,7 @@ abstract class MedCounterDatabase : RoomDatabase() {
                     MedCounterDatabase::class.java,
                     "medcounter.db",
                 )
-                    .addMigrations(MIGRATION_2_3, MIGRATION_3_4, MIGRATION_4_5)
+                    .addMigrations(MIGRATION_2_3, MIGRATION_3_4, MIGRATION_4_5, MIGRATION_5_6)
                     .fallbackToDestructiveMigration(dropAllTables = true)
                     .build()
                     .also { instance = it }
@@ -107,6 +108,14 @@ abstract class MedCounterDatabase : RoomDatabase() {
             "ALTER TABLE medications ADD COLUMN pauseReason TEXT NOT NULL DEFAULT ''",
         )
 
+        val SQL_5_6 = listOf(
+            "ALTER TABLE medications ADD COLUMN unitsPerPack REAL",
+            "ALTER TABLE medications ADD COLUMN rxQuantityPrescribed REAL",
+            "ALTER TABLE medications ADD COLUMN rxQuantityDispensed REAL NOT NULL DEFAULT 0",
+            "ALTER TABLE medications ADD COLUMN rxDate INTEGER",
+            "ALTER TABLE medications ADD COLUMN prescriber TEXT NOT NULL DEFAULT ''",
+        )
+
         val MIGRATION_2_3 = object : Migration(2, 3) {
             override fun migrate(db: SupportSQLiteDatabase) {
                 SQL_2_3.forEach { db.execSQL(it) }
@@ -122,6 +131,12 @@ abstract class MedCounterDatabase : RoomDatabase() {
         val MIGRATION_4_5 = object : Migration(4, 5) {
             override fun migrate(db: SupportSQLiteDatabase) {
                 SQL_4_5.forEach { db.execSQL(it) }
+            }
+        }
+
+        val MIGRATION_5_6 = object : Migration(5, 6) {
+            override fun migrate(db: SupportSQLiteDatabase) {
+                SQL_5_6.forEach { db.execSQL(it) }
             }
         }
     }

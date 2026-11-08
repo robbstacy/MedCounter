@@ -35,6 +35,9 @@ import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.medcounter.domain.MedicationStatus
 import com.medcounter.domain.ScheduleType
+import com.medcounter.domain.SlipScan
+import com.medcounter.ui.components.RxPhotoSection
+import com.medcounter.ui.components.RxScanButtons
 import com.medcounter.ui.components.StatusBadge
 import com.medcounter.ui.components.formatQty
 import com.medcounter.ui.theme.StatusOut
@@ -55,6 +58,9 @@ fun MedicationDetailScreen(
 ) {
     val item by viewModel.medWithCalc.collectAsStateWithLifecycle()
     val audits by viewModel.auditLogs.collectAsStateWithLifecycle()
+    val photos by viewModel.photos.collectAsStateWithLifecycle()
+    val photoScan by viewModel.photoScan.collectAsStateWithLifecycle()
+    val reading by viewModel.reading.collectAsStateWithLifecycle()
     var dialog by remember { mutableStateOf(DetailDialog.None) }
     val current = item
 
@@ -103,9 +109,22 @@ fun MedicationDetailScreen(
             val runDate = calc.runOutDate?.let { displayDate.format(it) } ?: "—"
             Text("$runDate $runLabel")
             if (med.pillboxQuantity != null) {
-                val pill = med.pillboxQuantity
-                val bottle = (calc.currentQuantity - pill).coerceAtLeast(0.0)
-                Text("${formatQty(bottle)} in bottle  ·  ${formatQty(pill)} in pillbox")
+                val pill = med.pillboxQuantity.coerceAtMost(calc.currentQuantity)
+                val stock = (calc.currentQuantity - pill).coerceAtLeast(0.0)
+                Text("${formatQty(stock)} in stock  ·  ${formatQty(pill)} in pillbox")
+            }
+            med.unitsPerPack?.let { perStrip ->
+                Text("≈ ${stripText(calc.currentQuantity, perStrip)} (${formatQty(perStrip)} per strip)")
+            }
+            med.rxQuantityPrescribed?.let { prescribed ->
+                val left = med.rxQuantityLeft ?: 0.0
+                Text("Prescription: ${formatQty(left)} of ${formatQty(prescribed)} left to buy")
+            }
+            if (med.prescriber.isNotBlank() || med.rxDate != null) {
+                val dated = med.rxDate?.let {
+                    java.time.Instant.ofEpochMilli(it).atZone(java.time.ZoneId.systemDefault()).toLocalDate().let(auditDate::format)
+                }
+                Text(listOfNotNull(med.prescriber.ifBlank { null }, dated?.let { "dated $it" }).joinToString(", "))
             }
             if (med.pharmacy.isNotBlank()) Text("Pharmacy: ${med.pharmacy}")
             if (med.rxNumber.isNotBlank()) Text("Rx: ${med.rxNumber}")
@@ -134,7 +153,7 @@ fun MedicationDetailScreen(
                 Text("Add Restock")
             }
             OutlinedButton(onClick = { dialog = DetailDialog.Count }, modifier = Modifier.fillMaxWidth()) {
-                Text("Update Count")
+                Text(if (med.pillboxQuantity != null) "Update Count (stock + pillbox)" else "Update Count")
             }
             if (med.pillboxQuantity != null) {
                 OutlinedButton(onClick = { dialog = DetailDialog.Pillbox }, modifier = Modifier.fillMaxWidth()) {
@@ -150,6 +169,13 @@ fun MedicationDetailScreen(
                     Text("Pause Medication")
                 }
             }
+            RxPhotoSection(
+                photos = photos,
+                onAddUris = { uris -> viewModel.addPhotos(uris) },
+                onRead = viewModel::readPhoto,
+                onDelete = viewModel::deletePhoto,
+            )
+            if (reading) Text("Reading prescription on this device…", style = MaterialTheme.typography.bodySmall)
             Text("Activity", style = MaterialTheme.typography.titleMedium)
             if (audits.isEmpty()) Text("No activity yet")
             audits.forEach { log ->
@@ -163,6 +189,52 @@ fun MedicationDetailScreen(
         }
     }
 
+    photoScan?.let { result ->
+        val med = current?.medication
+        var isNew by remember(result) {
+            mutableStateOf(
+                med?.rxQuantityPrescribed == null ||
+                    (result.scan.date != null && med.rxDate?.let {
+                        java.time.Instant.ofEpochMilli(it).atZone(java.time.ZoneId.systemDefault()).toLocalDate()
+                    } != result.scan.date),
+            )
+        }
+        val item = result.item
+        val lines = buildList {
+            if (item != null) add(item.summary())
+            result.scan.date?.let { add("Dated ${auditDate.format(it)}") }
+            result.scan.prescriber?.let { add(it) }
+            result.scan.rxNumber?.let { add("Rx #$it") }
+        }
+        AlertDialog(
+            onDismissRequest = viewModel::dismissPhotoScan,
+            title = { Text("From this prescription") },
+            text = {
+                Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                    when {
+                        result.scan.isEmpty -> Text("Couldn't read this photo. Handwriting often can't be read; you can still keep the photo for reference.")
+                        item == null && result.scan.items.isNotEmpty() ->
+                            Text("This prescription lists ${result.scan.items.joinToString { it.name }}, not ${result.medicationName}.")
+                        else -> {
+                            Text(lines.joinToString("\n"))
+                            if (item?.quantity != null) {
+                                Row(verticalAlignment = Alignment.CenterVertically) {
+                                    Checkbox(isNew, { isNew = it })
+                                    Text("New prescription (reset “bought so far”)")
+                                }
+                            }
+                        }
+                    }
+                }
+            },
+            confirmButton = {
+                val canApply = !result.scan.isEmpty && (item != null || result.scan.items.isEmpty())
+                TextButton(onClick = { viewModel.applyPhotoScan(isNew) }, enabled = canApply) { Text("Save details") }
+            },
+            dismissButton = { TextButton(onClick = viewModel::dismissPhotoScan) { Text("Cancel") } },
+        )
+    }
+
     when (dialog) {
         DetailDialog.Log -> LogDialog(
             prn = current?.medication?.scheduleType == "PRN",
@@ -173,20 +245,30 @@ fun MedicationDetailScreen(
             },
         )
         DetailDialog.Restock -> RestockDialog(
+            keepPhoto = { uri -> viewModel.addPhotos(listOf(uri)); Unit },
+            medName = current?.medication?.name.orEmpty(),
+            perStrip = current?.medication?.unitsPerPack,
+            currentRefills = current?.medication?.refillsRemaining,
             onDismiss = { dialog = DetailDialog.None },
-            onConfirm = { qty, notes, used ->
-                viewModel.addRestock(qty, notes, used)
+            onConfirm = { qty, notes, used, scanned ->
+                viewModel.addRestock(qty, notes, used, scanned)
                 dialog = DetailDialog.None
             },
         )
-        DetailDialog.Count -> CountDialog(
-            expected = current?.calculation?.currentQuantity ?: 0.0,
-            onDismiss = { dialog = DetailDialog.None },
-            onConfirm = { qty, notes ->
-                viewModel.updateCount(qty, notes)
-                dialog = DetailDialog.None
-            },
-        )
+        DetailDialog.Count -> {
+            val total = current?.calculation?.currentQuantity ?: 0.0
+            val pill = current?.medication?.pillboxQuantity
+            CountDialog(
+                perStrip = current?.medication?.unitsPerPack,
+                expected = total,
+                expectedPillbox = pill?.coerceAtMost(total),
+                onDismiss = { dialog = DetailDialog.None },
+                onConfirm = { bottle, pillbox, notes ->
+                    viewModel.updateCount(bottle, pillbox, notes)
+                    dialog = DetailDialog.None
+                },
+            )
+        }
         DetailDialog.Pause -> PauseDialog(
             onDismiss = { dialog = DetailDialog.None },
             onConfirm = {
@@ -238,43 +320,100 @@ private fun LogDialog(prn: Boolean, onDismiss: () -> Unit, onConfirm: (Double, B
 }
 
 @Composable
-private fun RestockDialog(onDismiss: () -> Unit, onConfirm: (Double, String, Boolean) -> Unit) {
-    var qty by remember { mutableStateOf("") }
+private fun RestockDialog(
+    keepPhoto: suspend (android.net.Uri) -> Unit,
+    medName: String,
+    perStrip: Double?,
+    currentRefills: Int?,
+    onDismiss: () -> Unit,
+    onConfirm: (Double, String, Boolean, SlipScan?) -> Unit,
+) {
+    val qty = rememberStripQuantity(perStrip, initial = 0.0)
     var notes by remember { mutableStateOf("") }
     var used by remember { mutableStateOf(false) }
+    var scanned by remember { mutableStateOf<SlipScan?>(null) }
+    val item = scanned?.let { it.matchFor(medName) ?: it.items.singleOrNull() }
+    val scanUnmatched = scanned != null && item == null && scanned?.rxNumber == null
     AlertDialog(
         onDismissRequest = onDismiss,
         title = { Text("Add Restock") },
         text = {
-            Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
-                OutlinedTextField(qty, { qty = it }, label = { Text("Quantity added") })
+            Column(
+                modifier = Modifier.verticalScroll(rememberScrollState()),
+                verticalArrangement = Arrangement.spacedBy(8.dp),
+            ) {
+                RxScanButtons(
+                    scanLabel = "Scan new Rx",
+                    onResult = { scan -> scanned = scan },
+                    keepPhoto = keepPhoto,
+                )
+                if (scanUnmatched) {
+                    Text("That prescription doesn't list $medName, so it won't be applied.", color = StatusOut)
+                }
+                if (item != null) {
+                    val lines = listOfNotNull(
+                        item.quantity?.let { "New prescription: #${formatQty(it)} (resets “bought so far”)" },
+                        item.refills?.let { new -> "Refills: ${currentRefills?.let { "$it → " }.orEmpty()}$new" },
+                        scanned?.prescriber,
+                    )
+                    if (lines.isNotEmpty()) {
+                        Text("From the prescription (will be saved):\n" + lines.joinToString("\n"), style = MaterialTheme.typography.bodySmall)
+                    }
+                }
+                StripQuantityFields(qty, label = "Bought / added")
                 OutlinedTextField(notes, { notes = it }, label = { Text("Notes (optional)") })
-                Row(verticalAlignment = Alignment.CenterVertically) {
-                    Checkbox(used, { used = it })
-                    Text("Used a refill")
+                if (item?.quantity == null && item?.refills == null) {
+                    Row(verticalAlignment = Alignment.CenterVertically) {
+                        Checkbox(used, { used = it })
+                        Text("Used a refill")
+                    }
                 }
             }
         },
         confirmButton = {
-            TextButton(onClick = { onConfirm(qty.toDoubleOrNull() ?: 0.0, notes, used) }) { Text("Add") }
+            TextButton(
+                onClick = { qty.total?.let { onConfirm(it, notes, used, if (scanUnmatched) null else scanned) } },
+                enabled = qty.total != null,
+            ) { Text("Add") }
         },
         dismissButton = { TextButton(onClick = onDismiss) { Text("Cancel") } },
     )
 }
 
 @Composable
-private fun CountDialog(expected: Double, onDismiss: () -> Unit, onConfirm: (Double, String) -> Unit) {
-    var qty by remember { mutableStateOf(formatQty(expected)) }
+private fun CountDialog(
+    perStrip: Double?,
+    expected: Double,
+    expectedPillbox: Double?,
+    onDismiss: () -> Unit,
+    onConfirm: (stock: Double, pillbox: Double?, notes: String) -> Unit,
+) {
+    val tracksPillbox = expectedPillbox != null
+    val expectedStock = (expected - (expectedPillbox ?: 0.0)).coerceAtLeast(0.0)
+    val stock = rememberStripQuantity(perStrip, initial = expectedStock)
+    var pillbox by remember { mutableStateOf(expectedPillbox?.let(::formatQty).orEmpty()) }
     var notes by remember { mutableStateOf("") }
-    val entered = qty.toDoubleOrNull()
-    val shortfall = if (entered != null) expected - entered else 0.0
+    val enteredStock = stock.total
+    val enteredPillbox = if (tracksPillbox) pillbox.toDoubleOrNull() else 0.0
+    val valid = enteredStock != null && enteredStock >= 0 && enteredPillbox != null && enteredPillbox >= 0
+    val total = (enteredStock ?: 0.0) + (enteredPillbox ?: 0.0)
+    val shortfall = if (valid) expected - total else 0.0
     AlertDialog(
         onDismissRequest = onDismiss,
         title = { Text("Update Count") },
         text = {
-            Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
-                OutlinedTextField(qty, { qty = it }, label = { Text("Actual count") })
-                Text("Expected on hand: ${formatQty(expected)}")
+            Column(
+                modifier = Modifier.verticalScroll(rememberScrollState()),
+                verticalArrangement = Arrangement.spacedBy(8.dp),
+            ) {
+                StripQuantityFields(stock, label = if (tracksPillbox) "Counted in stock (not in pillbox)" else "Actual count")
+                if (tracksPillbox) {
+                    OutlinedTextField(pillbox, { pillbox = it }, label = { Text("Counted in pillbox") }, isError = enteredPillbox == null)
+                    Text("Expected: ${formatQty(expectedStock)} stock + ${formatQty(expectedPillbox ?: 0.0)} pillbox = ${formatQty(expected)}")
+                    if (valid) Text("New total: ${formatQty(total)}")
+                } else {
+                    Text("Expected on hand: ${formatQty(expected)}")
+                }
                 if (shortfall > 0.5) {
                     Text("⚠ ${formatQty(shortfall)} fewer than expected — will be flagged in activity log", color = StatusOut)
                 }
@@ -282,10 +421,65 @@ private fun CountDialog(expected: Double, onDismiss: () -> Unit, onConfirm: (Dou
             }
         },
         confirmButton = {
-            TextButton(onClick = { entered?.let { onConfirm(it, notes) } }, enabled = entered != null) { Text("Update") }
+            TextButton(
+                onClick = { if (valid) onConfirm(enteredStock!!, if (tracksPillbox) enteredPillbox else null, notes) },
+                enabled = valid,
+            ) { Text("Update") }
         },
         dismissButton = { TextButton(onClick = onDismiss) { Text("Cancel") } },
     )
+}
+
+/** Quantity entry that can be typed as full blister strips plus loose tablets. */
+private class StripQuantity(val perStrip: Double?, strips: String, loose: String) {
+    var strips by mutableStateOf(strips)
+    var loose by mutableStateOf(loose)
+    val total: Double?
+        get() {
+            val l = if (loose.isBlank() && perStrip != null) 0.0 else loose.toDoubleOrNull() ?: return null
+            if (perStrip == null) return l
+            val s = if (strips.isBlank()) 0.0 else strips.toDoubleOrNull() ?: return null
+            if (strips.isBlank() && loose.isBlank()) return null
+            return s * perStrip + l
+        }
+}
+
+@Composable
+private fun rememberStripQuantity(perStrip: Double?, initial: Double): StripQuantity = remember(perStrip) {
+    if (perStrip == null || perStrip <= 0.0) {
+        StripQuantity(null, "", if (initial > 0) formatQty(initial) else "")
+    } else {
+        val strips = kotlin.math.floor(initial / perStrip)
+        val loose = initial - strips * perStrip
+        StripQuantity(
+            perStrip,
+            if (initial > 0) formatQty(strips) else "",
+            if (initial > 0) formatQty(loose) else "",
+        )
+    }
+}
+
+@Composable
+private fun StripQuantityFields(q: StripQuantity, label: String) {
+    val perStrip = q.perStrip
+    if (perStrip == null) {
+        OutlinedTextField(q.loose, { q.loose = it }, label = { Text(label) }, isError = q.loose.isNotBlank() && q.total == null)
+        return
+    }
+    Text(label, style = MaterialTheme.typography.labelLarge)
+    Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+        OutlinedTextField(q.strips, { q.strips = it }, label = { Text("Full strips") }, modifier = Modifier.weight(1f))
+        OutlinedTextField(q.loose, { q.loose = it }, label = { Text("Loose") }, modifier = Modifier.weight(1f))
+    }
+    q.total?.let { Text("= ${formatQty(it)} total (${formatQty(perStrip)} per strip)", style = MaterialTheme.typography.bodySmall) }
+}
+
+internal fun stripText(total: Double, perStrip: Double): String {
+    if (perStrip <= 0) return formatQty(total)
+    val strips = kotlin.math.floor(total / perStrip).toLong()
+    val loose = total - strips * perStrip
+    val s = "$strips strip${if (strips == 1L) "" else "s"}"
+    return if (loose > 0.0) "$s + ${formatQty(loose)} loose" else s
 }
 
 @Composable
@@ -327,7 +521,7 @@ private fun PillboxDialog(bottle: Double, pillbox: Double, onDismiss: () -> Unit
                     placeholder = { Text("e.g. 7") },
                     isError = error,
                 )
-                Text("Currently in bottle: ${formatQty(bottle)}  ·  pillbox: ${formatQty(pillbox)}")
+                Text("Currently in stock: ${formatQty(bottle)}  ·  pillbox: ${formatQty(pillbox)}")
                 if (error) Text("Must be between 0 and ${formatQty(bottle)}", color = StatusOut)
             }
         },

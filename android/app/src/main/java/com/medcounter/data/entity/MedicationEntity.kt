@@ -40,4 +40,19 @@ data class MedicationEntity(
     val pillboxQuantity: Double? = null,
     val isPaused: Boolean = false,
     val pauseReason: String = "",
-)
+    // v6: blister packs + doctor's prescription tracking (Philippines-style partial fills)
+    /** Tablets per blister strip/pack; null when the med doesn't come in strips. */
+    val unitsPerPack: Double? = null,
+    /** Total quantity written on the current prescription slip (e.g. "#90"). */
+    val rxQuantityPrescribed: Double? = null,
+    /** How much of [rxQuantityPrescribed] has been bought so far. */
+    val rxQuantityDispensed: Double = 0.0,
+    /** Date on the prescription slip, epoch millis. */
+    val rxDate: Long? = null,
+    /** Prescribing doctor as written on the slip. */
+    val prescriber: String = "",
+) {
+    /** Units still available to buy on the current prescription, or null if not tracked. */
+    val rxQuantityLeft: Double?
+        get() = rxQuantityPrescribed?.let { (it - rxQuantityDispensed).coerceAtLeast(0.0) }
+}

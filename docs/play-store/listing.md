@@ -44,7 +44,8 @@ Your medication list is nobody's business but yours.
 • No account, no sign-up
 • No internet connection required or used
 • No cloud, no sync, no servers
-• No ads, no analytics, no third-party SDKs
+• No ads, no analytics, no tracking SDKs
+• Prescription scanning runs on your phone; photos are never uploaded
 • All data stays in a local database on your device
 • Export and share only what you choose, when you choose
 

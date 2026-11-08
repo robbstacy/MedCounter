@@ -11,8 +11,15 @@ import com.medcounter.domain.AuditAction
 import com.medcounter.domain.DoseScheduleResolver
 import com.medcounter.domain.MedicationCalculationService
 import com.medcounter.domain.MedicationWithCalculation
+import com.medcounter.domain.SlipScan
 import com.medcounter.domain.ScheduleType
+import android.net.Uri
+import com.medcounter.data.RxPhotoStore
+import com.medcounter.ocr.RxLabelScanner
+import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharingStarted
+import kotlinx.coroutines.flow.asStateFlow
+import java.io.File
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.flow.stateIn
@@ -41,6 +48,79 @@ class MedicationDetailViewModel(
 
     val auditLogs = repository.getAuditLogsForMedication(medicationId)
         .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), emptyList())
+
+    private val context = container.appContext
+    private val _photos = MutableStateFlow(RxPhotoStore.list(context, medicationId))
+    val photos = _photos.asStateFlow()
+
+    /** Result of reading an attached photo, awaiting the user's OK. */
+    private val _photoScan = MutableStateFlow<PhotoScanResult?>(null)
+    val photoScan = _photoScan.asStateFlow()
+    private val _reading = MutableStateFlow(false)
+    val reading = _reading.asStateFlow()
+
+    /** Returns how many photos were attached. */
+    suspend fun addPhotos(uris: List<Uri>): Int {
+        val saved = uris.count { RxPhotoStore.add(context, medicationId, it) != null }
+        _photos.value = RxPhotoStore.list(context, medicationId)
+        return saved
+    }
+
+    fun deletePhoto(file: File) {
+        file.delete()
+        _photos.value = RxPhotoStore.list(context, medicationId)
+    }
+
+    fun readPhoto(file: File) {
+        viewModelScope.launch {
+            _reading.value = true
+            val scan = runCatching { RxLabelScanner.scan(context, Uri.fromFile(file)) }.getOrElse { SlipScan() }
+            _reading.value = false
+            val med = repository.getMedicationById(medicationId) ?: return@launch
+            val item = scan.matchFor(med.name) ?: scan.items.singleOrNull()
+            _photoScan.value = PhotoScanResult(scan, item, med.name)
+        }
+    }
+
+    fun dismissPhotoScan() {
+        _photoScan.value = null
+    }
+
+    /**
+     * Saves prescription details read from an attached photo without changing stock.
+     * [isNewPrescription] resets "bought so far" to zero.
+     */
+    fun applyPhotoScan(isNewPrescription: Boolean) {
+        val result = _photoScan.value ?: return
+        _photoScan.value = null
+        viewModelScope.launch {
+            val med = repository.getMedicationById(medicationId) ?: return@launch
+            val item = result.item
+            val scan = result.scan
+            val zone = java.time.ZoneId.systemDefault()
+            val updated = med.copy(
+                rxQuantityPrescribed = item?.quantity ?: med.rxQuantityPrescribed,
+                rxQuantityDispensed = if (isNewPrescription) 0.0 else med.rxQuantityDispensed,
+                refillsRemaining = item?.refills ?: med.refillsRemaining,
+                rxNumber = scan.rxNumber ?: med.rxNumber,
+                rxDate = scan.date?.atStartOfDay(zone)?.toInstant()?.toEpochMilli() ?: med.rxDate,
+                prescriber = scan.prescriber ?: med.prescriber,
+                pharmacy = med.pharmacy.ifBlank { scan.pharmacy.orEmpty() },
+            )
+            repository.updateMedication(updated)
+            val qty = medWithCalc.value?.calculation?.currentQuantity
+            audit(
+                med,
+                AuditAction.MED_EDITED,
+                delta = null,
+                before = qty,
+                after = qty,
+                expected = null,
+                note = "Prescription details from photo" + if (isNewPrescription) " (new Rx)" else "",
+                now = System.currentTimeMillis(),
+            )
+        }
+    }
 
     fun logDose(units: Double, isExtra: Boolean) {
         viewModelScope.launch {
@@ -79,26 +159,60 @@ class MedicationDetailViewModel(
         }
     }
 
-    fun addRestock(quantity: Double, notes: String, usedRefill: Boolean) {
+    /**
+     * Adds stock. When [scanned] is a new prescription slip for this medication, its
+     * numbers (quantity prescribed, refills, Rx #, date, doctor) replace the current
+     * prescription first. The amount added always counts toward "bought so far".
+     */
+    fun addRestock(quantity: Double, notes: String, usedRefill: Boolean, scanned: SlipScan? = null) {
         viewModelScope.launch {
             val current = medWithCalc.value ?: return@launch
             val med = repository.getMedicationById(medicationId) ?: return@launch
             val now = System.currentTimeMillis()
             val before = current.calculation.currentQuantity
             val pill = med.pillboxQuantity
-            if (pill != null) {
-                val projectedBottle = (before - pill).coerceAtLeast(0.0)
-                repository.updatePillboxSplit(med.id, projectedBottle + quantity, pill, now)
-            } else {
-                repository.updateQuantity(med.id, before + quantity, now)
+            val zone = java.time.ZoneId.systemDefault()
+
+            val item = scanned?.let { it.matchFor(med.name) ?: it.items.singleOrNull() }
+            val newRx = item?.quantity != null
+            val notesOut = mutableListOf<String>()
+            notes.trim().takeIf { it.isNotBlank() }?.let(notesOut::add)
+
+            var refills = med.refillsRemaining
+            var prescribed = med.rxQuantityPrescribed
+            var dispensed = med.rxQuantityDispensed
+            if (newRx) {
+                prescribed = item!!.quantity
+                dispensed = 0.0
+                item.refills?.let { refills = it }
+                notesOut += "New Rx: #${formatAuditQty(prescribed!!)}" + (item.refills?.let { ", refill ×$it" } ?: "")
+            } else if (scanned?.rxNumber != null || item?.refills != null) {
+                item?.refills?.let { refills = it }
+                notesOut += listOfNotNull(scanned?.rxNumber?.let { "Rx #$it" }, item?.refills?.let { "$it refills left" })
+                    .joinToString(", ", prefix = "From label: ")
+            } else if (usedRefill && refills != null && refills > 0) {
+                refills -= 1
+                notesOut += "Used 1 refill"
             }
-            var note = notes.trim()
-            val refills = med.refillsRemaining
-            if (usedRefill && refills != null && refills > 0) {
-                repository.updateRefills(med.id, refills - 1)
-                val refillNote = "Used 1 refill"
-                note = if (note.isBlank()) refillNote else "$note · $refillNote"
+            if (prescribed != null) {
+                dispensed += quantity
+                val left = (prescribed - dispensed).coerceAtLeast(0.0)
+                notesOut += "${formatAuditQty(left)} left on Rx"
             }
+
+            val updated = med.copy(
+                quantityOnHand = if (pill != null) (before - pill).coerceAtLeast(0.0) + quantity else before + quantity,
+                quantityAsOf = now,
+                refillsRemaining = refills,
+                rxQuantityPrescribed = prescribed,
+                rxQuantityDispensed = dispensed,
+                rxNumber = scanned?.rxNumber ?: med.rxNumber,
+                pharmacy = med.pharmacy.ifBlank { scanned?.pharmacy.orEmpty() },
+                rxDate = if (newRx) scanned?.date?.atStartOfDay(zone)?.toInstant()?.toEpochMilli() ?: now else med.rxDate,
+                prescriber = if (newRx) scanned?.prescriber ?: med.prescriber else med.prescriber,
+            )
+            repository.updateMedication(updated)
+            val note = notesOut.joinToString(" · ")
             repository.insertRestockEvent(
                 RestockEventEntity(
                     medicationId = med.id,
@@ -120,19 +234,38 @@ class MedicationDetailViewModel(
         }
     }
 
-    fun updateCount(newQty: Double, notes: String) {
+    /**
+     * Records a physical count (audit). For meds tracked with a pillbox, [bottleQty] is the
+     * bottle count and [pillboxQty] the pillbox count; they are stored separately, and their
+     * sum is what gets compared with the expected total. Previously the whole total was
+     * written to the bottle while the old pillbox count was kept, which double-counted it.
+     */
+    fun updateCount(bottleQty: Double, pillboxQty: Double?, notes: String) {
         viewModelScope.launch {
             val current = medWithCalc.value ?: return@launch
             val med = repository.getMedicationById(medicationId) ?: return@launch
             val now = System.currentTimeMillis()
             val expected = current.calculation.currentQuantity
-            repository.updateQuantity(med.id, newQty, now)
-            val shortfall = expected - newQty
-            val note = when {
-                notes.isNotBlank() -> notes.trim()
-                shortfall > 0.5 -> "⚠ Shortfall: ${formatAuditQty(shortfall)} fewer than expected"
-                else -> ""
+            val tracksPillbox = med.pillboxQuantity != null
+            val newQty = if (tracksPillbox) {
+                val pill = (pillboxQty ?: med.pillboxQuantity ?: 0.0).coerceAtLeast(0.0)
+                val bottle = bottleQty.coerceAtLeast(0.0)
+                repository.updatePillboxSplit(med.id, bottle, pill, now)
+                bottle + pill
+            } else {
+                repository.updateQuantity(med.id, bottleQty, now)
+                bottleQty
             }
+            val shortfall = expected - newQty
+            val split = if (tracksPillbox) {
+                "Stock ${formatAuditQty(bottleQty)} + pillbox ${formatAuditQty(pillboxQty ?: med.pillboxQuantity ?: 0.0)}"
+            } else {
+                ""
+            }
+            val flag = if (shortfall > 0.5) "⚠ Shortfall: ${formatAuditQty(shortfall)} fewer than expected" else ""
+            val note = listOf(notes.trim(), split, if (notes.isBlank()) flag else "")
+                .filter { it.isNotBlank() }
+                .joinToString(" · ")
             audit(
                 med,
                 AuditAction.COUNT_ADJUSTED,
@@ -234,3 +367,9 @@ internal fun formatAuditQty(qty: Double): String {
     if (qty == kotlin.math.floor(qty)) return qty.toLong().toString()
     return String.format(java.util.Locale.US, "%.1f", qty)
 }
+
+data class PhotoScanResult(
+    val scan: SlipScan,
+    val item: com.medcounter.domain.SlipItem?,
+    val medicationName: String,
+)

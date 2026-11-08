@@ -19,7 +19,8 @@ object CsvFormat {
         "id,profile_name,name,strength,strength_unit,form,schedule_type,units_per_dose," +
             "quantity_on_hand,quantity_as_of,days_remaining,runs_out,lead_time_days,refills_remaining," +
             "pharmacy,rx_number,notes,interval_days,custom_doses_per_day,pillbox_quantity,is_paused," +
-            "pause_reason,dose_times"
+            "pause_reason,dose_times,units_per_pack,rx_quantity_prescribed,rx_quantity_dispensed," +
+            "rx_date,prescriber"
 
     const val RESTOCK_HEADER = "id,medication_name,profile_name,date,quantity_added,notes"
     const val USAGE_HEADER = "id,medication_name,profile_name,date,quantity_used"
@@ -173,6 +174,11 @@ object CsvFormat {
                 if (medication.isPaused) "1" else "0",
                 medication.pauseReason,
                 doseTimes,
+                medication.unitsPerPack?.let { fmtQty(it) }.orEmpty(),
+                medication.rxQuantityPrescribed?.let { fmtQty(it) }.orEmpty(),
+                fmtQty(medication.rxQuantityDispensed),
+                medication.rxDate?.let { formatDate(epochMillisToLocalDate(it, zone)) }.orEmpty(),
+                medication.prescriber,
             )
         }
     }

@@ -46,7 +46,24 @@ class SchemaAndMigrationTest {
     }
 
     @Test
-    fun migrations2Through5MatchRecoveredSql() {
+    fun exportedV6SchemaMatchesMigration() {
+        val candidates = listOf(
+            File("schemas/com.medcounter.data.MedCounterDatabase/6.json"),
+            File("app/schemas/com.medcounter.data.MedCounterDatabase/6.json"),
+        )
+        val text = candidates.firstOrNull { it.exists() }?.readText()
+            ?: error("v6 Room schema JSON not found")
+        assertTrue(text.contains("\"version\": 6"))
+        assertTrue(
+            text.contains(
+                "`pauseReason` TEXT NOT NULL, `unitsPerPack` REAL, `rxQuantityPrescribed` REAL, " +
+                    "`rxQuantityDispensed` REAL NOT NULL, `rxDate` INTEGER, `prescriber` TEXT NOT NULL",
+            ),
+        )
+    }
+
+    @Test
+    fun migrations2Through6PreserveData() {
         Class.forName("org.sqlite.JDBC")
         val connection = DriverManager.getConnection("jdbc:sqlite::memory:")
         connection.createStatement().use { st ->
@@ -95,7 +112,7 @@ class SchemaAndMigrationTest {
             )
         }
         connection.createStatement().use { st ->
-            (MedCounterDatabase.SQL_2_3 + MedCounterDatabase.SQL_3_4 + MedCounterDatabase.SQL_4_5)
+            (MedCounterDatabase.SQL_2_3 + MedCounterDatabase.SQL_3_4 + MedCounterDatabase.SQL_4_5 + MedCounterDatabase.SQL_5_6)
                 .forEach { st.executeUpdate(it) }
         }
 
@@ -120,6 +137,19 @@ class SchemaAndMigrationTest {
             assertTrue(paused.next())
             assertEquals(0, paused.getInt(1))
             assertEquals("", paused.getString(2))
+            listOf("unitsPerPack", "rxQuantityPrescribed", "rxQuantityDispensed", "rxDate", "prescriber")
+                .forEach { assertTrue("missing $it", colNames.contains(it)) }
+            val v6 = st.executeQuery(
+                "SELECT name, quantityOnHand, unitsPerPack, rxQuantityPrescribed, rxQuantityDispensed, rxDate, prescriber FROM medications",
+            )
+            assertTrue(v6.next())
+            assertEquals("Demo", v6.getString(1))
+            assertEquals(20.0, v6.getDouble(2), 0.0)
+            v6.getDouble(3); assertTrue(v6.wasNull())
+            v6.getDouble(4); assertTrue(v6.wasNull())
+            assertEquals(0.0, v6.getDouble(5), 0.0)
+            v6.getLong(6); assertTrue(v6.wasNull())
+            assertEquals("", v6.getString(7))
         }
         connection.close()
     }
