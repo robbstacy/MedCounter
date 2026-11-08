@@ -47,7 +47,11 @@ data class SlipScan(
         date?.let { add(it.toString()) }
     }.joinToString(" · ")
 
-    /** Best item for a medication already named [medName], matched loosely on generic or brand name. */
+    /**
+     * Best item for a medication already named [medName], matched on generic or brand
+     * name: exact first, then prefix ("Metformin" ↔ "Metformin HCl"), then tolerant of
+     * a small misspelling or OCR misread (see [DrugNameMatcher]).
+     */
     fun matchFor(medName: String): SlipItem? {
         val key = normalizeName(medName)
         if (key.isBlank()) return null
@@ -56,7 +60,12 @@ data class SlipScan(
                 val n = normalizeName(item.name)
                 n.isNotBlank() && (n.startsWith(key) || key.startsWith(n))
             }
+            ?: DrugNameMatcher.best(medName.firstWord(), items) { item ->
+                listOfNotNull(item.name, item.name.firstWord(), item.brand, item.brand?.firstWord())
+            }
     }
+
+    private fun String.firstWord(): String = trim().substringBefore(' ')
 }
 
 internal fun normalizeName(value: String): String =
