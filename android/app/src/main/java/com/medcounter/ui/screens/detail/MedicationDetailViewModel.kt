@@ -13,7 +13,13 @@ import com.medcounter.domain.MedicationCalculationService
 import com.medcounter.domain.MedicationWithCalculation
 import com.medcounter.domain.SlipScan
 import com.medcounter.domain.ScheduleType
+import android.net.Uri
+import com.medcounter.data.RxPhotoStore
+import com.medcounter.ocr.RxLabelScanner
+import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharingStarted
+import kotlinx.coroutines.flow.asStateFlow
+import java.io.File
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.flow.stateIn
@@ -42,6 +48,79 @@ class MedicationDetailViewModel(
 
     val auditLogs = repository.getAuditLogsForMedication(medicationId)
         .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), emptyList())
+
+    private val context = container.appContext
+    private val _photos = MutableStateFlow(RxPhotoStore.list(context, medicationId))
+    val photos = _photos.asStateFlow()
+
+    /** Result of reading an attached photo, awaiting the user's OK. */
+    private val _photoScan = MutableStateFlow<PhotoScanResult?>(null)
+    val photoScan = _photoScan.asStateFlow()
+    private val _reading = MutableStateFlow(false)
+    val reading = _reading.asStateFlow()
+
+    /** Returns how many photos were attached. */
+    suspend fun addPhotos(uris: List<Uri>): Int {
+        val saved = uris.count { RxPhotoStore.add(context, medicationId, it) != null }
+        _photos.value = RxPhotoStore.list(context, medicationId)
+        return saved
+    }
+
+    fun deletePhoto(file: File) {
+        file.delete()
+        _photos.value = RxPhotoStore.list(context, medicationId)
+    }
+
+    fun readPhoto(file: File) {
+        viewModelScope.launch {
+            _reading.value = true
+            val scan = runCatching { RxLabelScanner.scan(context, Uri.fromFile(file)) }.getOrElse { SlipScan() }
+            _reading.value = false
+            val med = repository.getMedicationById(medicationId) ?: return@launch
+            val item = scan.matchFor(med.name) ?: scan.items.singleOrNull()
+            _photoScan.value = PhotoScanResult(scan, item, med.name)
+        }
+    }
+
+    fun dismissPhotoScan() {
+        _photoScan.value = null
+    }
+
+    /**
+     * Saves prescription details read from an attached photo without changing stock.
+     * [isNewPrescription] resets "bought so far" to zero.
+     */
+    fun applyPhotoScan(isNewPrescription: Boolean) {
+        val result = _photoScan.value ?: return
+        _photoScan.value = null
+        viewModelScope.launch {
+            val med = repository.getMedicationById(medicationId) ?: return@launch
+            val item = result.item
+            val scan = result.scan
+            val zone = java.time.ZoneId.systemDefault()
+            val updated = med.copy(
+                rxQuantityPrescribed = item?.quantity ?: med.rxQuantityPrescribed,
+                rxQuantityDispensed = if (isNewPrescription) 0.0 else med.rxQuantityDispensed,
+                refillsRemaining = item?.refills ?: med.refillsRemaining,
+                rxNumber = scan.rxNumber ?: med.rxNumber,
+                rxDate = scan.date?.atStartOfDay(zone)?.toInstant()?.toEpochMilli() ?: med.rxDate,
+                prescriber = scan.prescriber ?: med.prescriber,
+                pharmacy = med.pharmacy.ifBlank { scan.pharmacy.orEmpty() },
+            )
+            repository.updateMedication(updated)
+            val qty = medWithCalc.value?.calculation?.currentQuantity
+            audit(
+                med,
+                AuditAction.MED_EDITED,
+                delta = null,
+                before = qty,
+                after = qty,
+                expected = null,
+                note = "Prescription details from photo" + if (isNewPrescription) " (new Rx)" else "",
+                now = System.currentTimeMillis(),
+            )
+        }
+    }
 
     fun logDose(units: Double, isExtra: Boolean) {
         viewModelScope.launch {
@@ -288,3 +367,9 @@ internal fun formatAuditQty(qty: Double): String {
     if (qty == kotlin.math.floor(qty)) return qty.toLong().toString()
     return String.format(java.util.Locale.US, "%.1f", qty)
 }
+
+data class PhotoScanResult(
+    val scan: SlipScan,
+    val item: com.medcounter.domain.SlipItem?,
+    val medicationName: String,
+)

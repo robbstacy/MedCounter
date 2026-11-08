@@ -41,10 +41,12 @@
    which is initiated by you and handled entirely by your browser.</p>
 
 <h2>Camera and photos</h2>
-<p>If you choose "Scan prescription", Med Counter opens your camera app (or lets you pick an existing
-   photo) so it can read the prescription text on your device. The photo is processed locally, is never
-   uploaded, and the app's temporary copy is deleted as soon as the text has been read. Med Counter
-   does not request the camera permission itself; your camera app takes the picture.</p>
+<p>If you choose "Scan prescription" or "Attach photos", Med Counter opens your camera app or the
+   Android photo picker (which gives the app access only to the photos you select). Prescription text is
+   read on your device. Photos you attach are re-saved inside the app's private storage, with location and
+   other camera metadata removed, so they are handy at the pharmacy; they are never uploaded and are
+   excluded from Android cloud backup. Deleting a photo or the medication removes them. Med Counter does
+   not request the camera or photo-library permissions; your camera app and the system picker handle that.</p>
 
 <h2>Refill list</h2>
 <p>The refill list builds a plain-text message from medications you select. It is only copied to

@@ -42,7 +42,13 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
+import com.medcounter.data.RxPhotoStore
 import com.medcounter.domain.RefillCandidate
+import com.medcounter.ui.components.sharePhotos
+import androidx.compose.material3.Switch
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
 import com.medcounter.domain.RefillPlanner
 import com.medcounter.ui.components.StatusBadge
 import com.medcounter.ui.components.formatQty
@@ -53,6 +59,13 @@ fun RefillListScreen(viewModel: RefillListViewModel, onBack: () -> Unit) {
     val state by viewModel.state.collectAsStateWithLifecycle()
     val context = LocalContext.current
     val multiplePeople = state.profiles.size > 1
+    var includePhotos by remember { mutableStateOf(true) }
+    // Newest attached prescription photo for each selected medication.
+    val selectedPhotos = remember(state.selectedIds, state.candidates) {
+        state.candidates
+            .filter { it.item.medication.id in state.selectedIds }
+            .mapNotNull { RxPhotoStore.list(context, it.item.medication.id).firstOrNull() }
+    }
 
     Scaffold(
         topBar = {
@@ -120,6 +133,20 @@ fun RefillListScreen(viewModel: RefillListViewModel, onBack: () -> Unit) {
                     }
                 }
             }
+            if (selectedPhotos.isNotEmpty()) {
+                item {
+                    Row(verticalAlignment = Alignment.CenterVertically) {
+                        Column(Modifier.weight(1f)) {
+                            Text("Include prescription photos")
+                            Text(
+                                "${selectedPhotos.size} photo${if (selectedPhotos.size == 1) "" else "s"} go with Send…",
+                                style = MaterialTheme.typography.bodySmall,
+                            )
+                        }
+                        Switch(includePhotos, { includePhotos = it })
+                    }
+                }
+            }
             item {
                 Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                     Button(
@@ -131,7 +158,13 @@ fun RefillListScreen(viewModel: RefillListViewModel, onBack: () -> Unit) {
                         Text("  Copy")
                     }
                     OutlinedButton(
-                        onClick = { shareText(context, state.message) },
+                        onClick = {
+                            if (includePhotos && selectedPhotos.isNotEmpty()) {
+                                sharePhotos(context, selectedPhotos, state.message)
+                            } else {
+                                shareText(context, state.message)
+                            }
+                        },
                         enabled = state.message.isNotBlank(),
                         modifier = Modifier.weight(1f),
                     ) {

@@ -49,6 +49,8 @@ fun RxScanButtons(
     onResult: (SlipScan) -> Unit,
     modifier: Modifier = Modifier,
     scanLabel: String = "Scan prescription",
+    /** Called with the photo that was read, before the temporary copy is deleted, so it can be attached. */
+    keepPhoto: (suspend (Uri) -> Unit)? = null,
 ) {
     val context = LocalContext.current
     val scope = rememberCoroutineScope()
@@ -63,6 +65,7 @@ fun RxScanButtons(
         message = null
         scope.launch {
             val info = runCatching { RxLabelScanner.scan(context, uri) }.getOrElse { SlipScan() }
+            keepPhoto?.let { keep -> runCatching { keep(uri) } }
             cleanup?.delete()
             busy = false
             rawText = info.rawText.takeIf { it.isNotBlank() }
@@ -90,10 +93,10 @@ fun RxScanButtons(
     }
 
     Column(modifier, verticalArrangement = Arrangement.spacedBy(4.dp)) {
-        Row(horizontalArrangement = Arrangement.spacedBy(8.dp), verticalAlignment = Alignment.CenterVertically) {
+        Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
             OutlinedButton(
                 enabled = !busy,
-                modifier = Modifier.weight(1f),
+                modifier = Modifier.fillMaxWidth(),
                 onClick = {
                     val file = newScanFile(context)
                     pendingPath = file.absolutePath
@@ -102,7 +105,7 @@ fun RxScanButtons(
                     } catch (_: ActivityNotFoundException) {
                         pendingPath = null
                         file.delete()
-                        message = "No camera app found. Use \"From photo\" instead."
+                        message = "No camera app found. Use \"From photos\" instead."
                     }
                 },
             ) {
@@ -111,14 +114,21 @@ fun RxScanButtons(
             }
             OutlinedButton(
                 enabled = !busy,
+                modifier = Modifier.fillMaxWidth(),
                 onClick = { pickImage.launch(PickVisualMediaRequest(ActivityResultContracts.PickVisualMedia.ImageOnly)) },
             ) {
-                Icon(Icons.Default.PhotoLibrary, contentDescription = "Pick a photo of the label")
+                Icon(Icons.Default.PhotoLibrary, contentDescription = null)
+                Text("  From photos")
             }
-            if (busy) CircularProgressIndicator(Modifier.size(24.dp), strokeWidth = 2.dp)
+        }
+        if (keepPhoto != null) {
+            Text("The photo is kept with this medication.", style = MaterialTheme.typography.bodySmall)
         }
         if (busy) {
-            Text("Reading label on this device…", style = MaterialTheme.typography.bodySmall)
+            Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                CircularProgressIndicator(Modifier.size(20.dp), strokeWidth = 2.dp)
+                Text("Reading prescription on this device…", style = MaterialTheme.typography.bodySmall)
+            }
         }
         message?.let {
             Text(it, style = MaterialTheme.typography.bodySmall, modifier = Modifier.fillMaxWidth())

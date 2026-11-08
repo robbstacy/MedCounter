@@ -4,6 +4,7 @@ import android.content.Context
 import com.medcounter.data.entity.TimeSlotEntity
 
 class AppContainer(context: Context) {
+    val appContext: Context = context.applicationContext
     val database: MedCounterDatabase = MedCounterDatabase.getInstance(context)
     val repository: MedCounterRepository = MedCounterRepository(database)
     val preferences: PreferencesManager = PreferencesManager(context)

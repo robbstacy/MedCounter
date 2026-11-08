@@ -2,7 +2,9 @@ package com.medcounter.ui.screens.addedit
 
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
+import android.net.Uri
 import com.medcounter.data.AppContainer
+import com.medcounter.data.RxPhotoStore
 import com.medcounter.data.entity.AuditLogEntity
 import com.medcounter.data.entity.MedicationDoseTimeEntity
 import com.medcounter.data.entity.MedicationEntity
@@ -48,6 +50,7 @@ data class AddEditState(
     val prescriber: String = "",
     /** Set when a scanned slip lists several drugs and the user must pick one. */
     val pendingScan: SlipScan? = null,
+    val attachedPhotoCount: Int = 0,
     val existingPillboxQuantity: Double? = null,
     val doseTimeEntries: List<DoseTimeEntry> = listOf(DoseTimeEntry(1L, null)),
     val timeSlots: List<TimeSlotEntity> = emptyList(),
@@ -68,8 +71,10 @@ class AddEditMedicationViewModel(
     private val _state = MutableStateFlow(AddEditState())
     val state: StateFlow<AddEditState> = _state.asStateFlow()
     private var editing: MedicationEntity? = null
+    private val context = container.appContext
 
     init {
+        if (medicationId <= 0L) RxPhotoStore.clearPending(context)
         viewModelScope.launch {
             val slots = repository.getAllSlotsSnapshot().ifEmpty {
                 container.ensureDefaultTimeSlots()
@@ -111,6 +116,7 @@ class AddEditMedicationViewModel(
                             .ifEmpty { defaultEntries(ScheduleType.valueOf(med.scheduleType)) },
                         timeSlots = slots,
                         isEditing = true,
+                        attachedPhotoCount = RxPhotoStore.list(context, med.id).size,
                         isLoading = false,
                         resolvedProfileId = med.profileId,
                         canSave = med.name.isNotBlank(),
@@ -150,6 +156,14 @@ class AddEditMedicationViewModel(
             matched != null -> applyScan(scan, matched)
             else -> update { it.copy(pendingScan = scan) }
         }
+    }
+
+    /** Keeps the photo a scan was made from, attached to this medication. */
+    suspend fun keepPhoto(uri: Uri) {
+        val id = medicationId.takeIf { it > 0L }
+        RxPhotoStore.add(context, id, uri)
+        val count = if (id != null) RxPhotoStore.list(context, id).size else RxPhotoStore.listPending(context).size
+        update { it.copy(attachedPhotoCount = count) }
     }
 
     fun dismissScanChoice() = update { it.copy(pendingScan = null) }
@@ -263,6 +277,7 @@ class AddEditMedicationViewModel(
                 }
             }
             repository.saveDoseTimesForMedication(id, doseTimes)
+            if (!s.isEditing) RxPhotoStore.claimPending(context, id)
             repository.insertAuditLog(
                 AuditLogEntity(
                     timestamp = now,
@@ -292,6 +307,7 @@ class AddEditMedicationViewModel(
                 ),
             )
             repository.deleteMedication(med)
+            RxPhotoStore.deleteAll(context, med.id)
             onDone()
         }
     }

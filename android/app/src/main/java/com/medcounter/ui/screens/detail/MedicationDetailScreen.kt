@@ -36,6 +36,7 @@ import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.medcounter.domain.MedicationStatus
 import com.medcounter.domain.ScheduleType
 import com.medcounter.domain.SlipScan
+import com.medcounter.ui.components.RxPhotoSection
 import com.medcounter.ui.components.RxScanButtons
 import com.medcounter.ui.components.StatusBadge
 import com.medcounter.ui.components.formatQty
@@ -57,6 +58,9 @@ fun MedicationDetailScreen(
 ) {
     val item by viewModel.medWithCalc.collectAsStateWithLifecycle()
     val audits by viewModel.auditLogs.collectAsStateWithLifecycle()
+    val photos by viewModel.photos.collectAsStateWithLifecycle()
+    val photoScan by viewModel.photoScan.collectAsStateWithLifecycle()
+    val reading by viewModel.reading.collectAsStateWithLifecycle()
     var dialog by remember { mutableStateOf(DetailDialog.None) }
     val current = item
 
@@ -165,6 +169,13 @@ fun MedicationDetailScreen(
                     Text("Pause Medication")
                 }
             }
+            RxPhotoSection(
+                photos = photos,
+                onAddUris = { uris -> viewModel.addPhotos(uris) },
+                onRead = viewModel::readPhoto,
+                onDelete = viewModel::deletePhoto,
+            )
+            if (reading) Text("Reading prescription on this device…", style = MaterialTheme.typography.bodySmall)
             Text("Activity", style = MaterialTheme.typography.titleMedium)
             if (audits.isEmpty()) Text("No activity yet")
             audits.forEach { log ->
@@ -178,6 +189,52 @@ fun MedicationDetailScreen(
         }
     }
 
+    photoScan?.let { result ->
+        val med = current?.medication
+        var isNew by remember(result) {
+            mutableStateOf(
+                med?.rxQuantityPrescribed == null ||
+                    (result.scan.date != null && med.rxDate?.let {
+                        java.time.Instant.ofEpochMilli(it).atZone(java.time.ZoneId.systemDefault()).toLocalDate()
+                    } != result.scan.date),
+            )
+        }
+        val item = result.item
+        val lines = buildList {
+            if (item != null) add(item.summary())
+            result.scan.date?.let { add("Dated ${auditDate.format(it)}") }
+            result.scan.prescriber?.let { add(it) }
+            result.scan.rxNumber?.let { add("Rx #$it") }
+        }
+        AlertDialog(
+            onDismissRequest = viewModel::dismissPhotoScan,
+            title = { Text("From this prescription") },
+            text = {
+                Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                    when {
+                        result.scan.isEmpty -> Text("Couldn't read this photo. Handwriting often can't be read; you can still keep the photo for reference.")
+                        item == null && result.scan.items.isNotEmpty() ->
+                            Text("This prescription lists ${result.scan.items.joinToString { it.name }}, not ${result.medicationName}.")
+                        else -> {
+                            Text(lines.joinToString("\n"))
+                            if (item?.quantity != null) {
+                                Row(verticalAlignment = Alignment.CenterVertically) {
+                                    Checkbox(isNew, { isNew = it })
+                                    Text("New prescription (reset “bought so far”)")
+                                }
+                            }
+                        }
+                    }
+                }
+            },
+            confirmButton = {
+                val canApply = !result.scan.isEmpty && (item != null || result.scan.items.isEmpty())
+                TextButton(onClick = { viewModel.applyPhotoScan(isNew) }, enabled = canApply) { Text("Save details") }
+            },
+            dismissButton = { TextButton(onClick = viewModel::dismissPhotoScan) { Text("Cancel") } },
+        )
+    }
+
     when (dialog) {
         DetailDialog.Log -> LogDialog(
             prn = current?.medication?.scheduleType == "PRN",
@@ -188,6 +245,7 @@ fun MedicationDetailScreen(
             },
         )
         DetailDialog.Restock -> RestockDialog(
+            keepPhoto = { uri -> viewModel.addPhotos(listOf(uri)); Unit },
             medName = current?.medication?.name.orEmpty(),
             perStrip = current?.medication?.unitsPerPack,
             currentRefills = current?.medication?.refillsRemaining,
@@ -263,6 +321,7 @@ private fun LogDialog(prn: Boolean, onDismiss: () -> Unit, onConfirm: (Double, B
 
 @Composable
 private fun RestockDialog(
+    keepPhoto: suspend (android.net.Uri) -> Unit,
     medName: String,
     perStrip: Double?,
     currentRefills: Int?,
@@ -286,6 +345,7 @@ private fun RestockDialog(
                 RxScanButtons(
                     scanLabel = "Scan new Rx",
                     onResult = { scan -> scanned = scan },
+                    keepPhoto = keepPhoto,
                 )
                 if (scanUnmatched) {
                     Text("That prescription doesn't list $medName, so it won't be applied.", color = StatusOut)

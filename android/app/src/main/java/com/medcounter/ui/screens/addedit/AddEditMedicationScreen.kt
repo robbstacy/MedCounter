@@ -98,7 +98,13 @@ fun AddEditMedicationScreen(
                 )
             }
             Text("Medication Info", style = androidx.compose.material3.MaterialTheme.typography.titleMedium)
-            RxScanButtons(onResult = viewModel::onScanned)
+            RxScanButtons(onResult = viewModel::onScanned, keepPhoto = viewModel::keepPhoto)
+            if (state.attachedPhotoCount > 0) {
+                Text(
+                    "${state.attachedPhotoCount} prescription photo${if (state.attachedPhotoCount == 1) "" else "s"} attached. See them on the medication's page.",
+                    style = androidx.compose.material3.MaterialTheme.typography.bodySmall,
+                )
+            }
             OutlinedTextField(
                 state.name,
                 { value -> viewModel.update { it.copy(name = value) } },
