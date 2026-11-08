@@ -10,6 +10,8 @@ import com.medcounter.data.entity.ProfileEntity
 import com.medcounter.data.entity.TimeSlotEntity
 import com.medcounter.domain.AuditAction
 import com.medcounter.domain.DoseScheduleResolver
+import com.medcounter.domain.SlipItem
+import com.medcounter.domain.SlipScan
 import com.medcounter.domain.ScheduleType
 import com.medcounter.ui.theme.ProfileColorHexes
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -39,6 +41,13 @@ data class AddEditState(
     val refills: String = "",
     val notes: String = "",
     val trackPillbox: Boolean = false,
+    val unitsPerPack: String = "",
+    val rxQuantityPrescribed: String = "",
+    val rxQuantityDispensed: String = "",
+    val rxDate: LocalDate? = null,
+    val prescriber: String = "",
+    /** Set when a scanned slip lists several drugs and the user must pick one. */
+    val pendingScan: SlipScan? = null,
     val existingPillboxQuantity: Double? = null,
     val doseTimeEntries: List<DoseTimeEntry> = listOf(DoseTimeEntry(1L, null)),
     val timeSlots: List<TimeSlotEntity> = emptyList(),
@@ -93,6 +102,11 @@ class AddEditMedicationViewModel(
                         notes = med.notes,
                         trackPillbox = med.pillboxQuantity != null,
                         existingPillboxQuantity = med.pillboxQuantity,
+                        unitsPerPack = med.unitsPerPack?.let(::trimNum).orEmpty(),
+                        rxQuantityPrescribed = med.rxQuantityPrescribed?.let(::trimNum).orEmpty(),
+                        rxQuantityDispensed = if (med.rxQuantityDispensed > 0) trimNum(med.rxQuantityDispensed) else "",
+                        rxDate = med.rxDate?.let { java.time.Instant.ofEpochMilli(it).atZone(zone).toLocalDate() },
+                        prescriber = med.prescriber,
                         doseTimeEntries = times.map { DoseTimeEntry(it.slotId, it.customMinutesOfDay) }
                             .ifEmpty { defaultEntries(ScheduleType.valueOf(med.scheduleType)) },
                         timeSlots = slots,
@@ -124,6 +138,52 @@ class AddEditMedicationViewModel(
         _state.update { current ->
             val next = block(current)
             next.copy(canSave = next.name.isNotBlank() && (!next.isFirstMedication || next.firstMedicationProfileName.isNotBlank()))
+        }
+    }
+
+    /** Entry point from the scan buttons; asks which drug when the slip lists several. */
+    fun onScanned(scan: SlipScan) {
+        val current = _state.value
+        val matched = scan.matchFor(current.name)
+        when {
+            scan.items.size <= 1 -> applyScan(scan, scan.items.firstOrNull())
+            matched != null -> applyScan(scan, matched)
+            else -> update { it.copy(pendingScan = scan) }
+        }
+    }
+
+    fun dismissScanChoice() = update { it.copy(pendingScan = null) }
+
+    /**
+     * Applies a scanned slip. Prescription numbers (quantity prescribed, refills, Rx #,
+     * date, doctor) come from the newest paper so they replace what is there; name,
+     * strength and schedule only fill blanks so a misread never overwrites typed data.
+     */
+    fun applyScan(scan: SlipScan, item: SlipItem?) {
+        update { s ->
+            val isNewRx = item?.quantity != null
+            s.copy(
+                pendingScan = null,
+                name = s.name.ifBlank { item?.name.orEmpty() },
+                strength = s.strength.ifBlank { item?.strength.orEmpty() },
+                strengthUnit = s.strengthUnit.ifBlank { item?.strengthUnit.orEmpty() },
+                form = if (!s.isEditing && item?.form != null) item.form else s.form,
+                scheduleType = if (!s.isEditing && item?.schedule != null) item.schedule else s.scheduleType,
+                doseTimeEntries = if (!s.isEditing && item?.schedule != null && item.schedule != s.scheduleType) {
+                    defaultEntries(item.schedule)
+                } else {
+                    s.doseTimeEntries
+                },
+                unitsPerDose = if (!s.isEditing && item?.unitsPerDose != null) trimNum(item.unitsPerDose) else s.unitsPerDose,
+                rxQuantityPrescribed = item?.quantity?.let(::trimNum) ?: s.rxQuantityPrescribed,
+                rxQuantityDispensed = if (isNewRx) "" else s.rxQuantityDispensed,
+                refills = item?.refills?.toString() ?: s.refills,
+                rxNumber = scan.rxNumber ?: s.rxNumber,
+                pharmacy = scan.pharmacy ?: s.pharmacy,
+                rxDate = scan.date ?: s.rxDate,
+                prescriber = scan.prescriber ?: s.prescriber,
+                notes = if (s.notes.isBlank() && item?.sig != null) "Sig: ${item.sig}" else s.notes,
+            )
         }
     }
 
@@ -182,6 +242,11 @@ class AddEditMedicationViewModel(
                 pillboxQuantity = pillbox,
                 isPaused = editing?.isPaused ?: false,
                 pauseReason = editing?.pauseReason ?: "",
+                unitsPerPack = s.unitsPerPack.toDoubleOrNull()?.takeIf { it > 0 },
+                rxQuantityPrescribed = s.rxQuantityPrescribed.toDoubleOrNull()?.takeIf { it > 0 },
+                rxQuantityDispensed = s.rxQuantityDispensed.toDoubleOrNull()?.coerceAtLeast(0.0) ?: 0.0,
+                rxDate = s.rxDate?.atStartOfDay(zone)?.toInstant()?.toEpochMilli(),
+                prescriber = s.prescriber.trim(),
             )
             val now = System.currentTimeMillis()
             val id = if (s.isEditing) {

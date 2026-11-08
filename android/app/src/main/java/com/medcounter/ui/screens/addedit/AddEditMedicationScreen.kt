@@ -41,6 +41,7 @@ import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.medcounter.data.export.CsvFormat
 import com.medcounter.domain.ScheduleType
+import com.medcounter.ui.components.RxScanButtons
 import com.medcounter.ui.components.formChoices
 import com.medcounter.ui.components.scheduleChoices
 import java.time.Instant
@@ -59,6 +60,7 @@ fun AddEditMedicationScreen(
     val state by viewModel.state.collectAsStateWithLifecycle()
     var showDelete by remember { mutableStateOf(false) }
     var showDate by remember { mutableStateOf(false) }
+    var showRxDate by remember { mutableStateOf(false) }
     var timeEditIndex by remember { mutableStateOf<Int?>(null) }
     val dateFmt = remember { DateTimeFormatter.ofPattern("MMM d, yyyy", Locale.US) }
 
@@ -96,6 +98,7 @@ fun AddEditMedicationScreen(
                 )
             }
             Text("Medication Info", style = androidx.compose.material3.MaterialTheme.typography.titleMedium)
+            RxScanButtons(onResult = viewModel::onScanned)
             OutlinedTextField(
                 state.name,
                 { value -> viewModel.update { it.copy(name = value) } },
@@ -179,9 +182,17 @@ fun AddEditMedicationScreen(
             }
             Text("Inventory", style = androidx.compose.material3.MaterialTheme.typography.titleMedium)
             OutlinedTextField(
+                state.unitsPerPack,
+                { value -> viewModel.update { it.copy(unitsPerPack = value) } },
+                label = { Text("${formUnitLabel(state.form)} per blister strip (optional)") },
+                supportingText = { Text("Lets you count by strips, e.g. 10") },
+                modifier = Modifier.fillMaxWidth(),
+            )
+            OutlinedTextField(
                 state.quantityOnHand,
                 { value -> viewModel.update { it.copy(quantityOnHand = value) } },
-                label = { Text("Count on hand") },
+                label = { Text("Count on hand (${formUnitLabel(state.form).lowercase()})") },
+                supportingText = stripHint(state.quantityOnHand, state.unitsPerPack)?.let { hint -> { Text(hint) } },
                 modifier = Modifier.fillMaxWidth(),
             )
             TextButton(onClick = { showDate = true }) { Text("Counted on ${dateFmt.format(state.countedOn)}") }
@@ -194,14 +205,36 @@ fun AddEditMedicationScreen(
             Row(verticalAlignment = Alignment.CenterVertically) {
                 Column(Modifier.weight(1f)) {
                     Text("Track pillbox separately")
-                    Text("Shows bottle vs. pillbox split; adds Fill Pillbox action")
+                    Text("Shows stock vs. pillbox split; adds Fill Pillbox action")
                 }
                 Switch(state.trackPillbox, { checked -> viewModel.update { it.copy(trackPillbox = checked) } })
+            }
+            Text("Prescription (Optional)", style = androidx.compose.material3.MaterialTheme.typography.titleMedium)
+            Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                OutlinedTextField(
+                    state.rxQuantityPrescribed,
+                    { v -> viewModel.update { it.copy(rxQuantityPrescribed = v) } },
+                    label = { Text("Qty on Rx (#)") },
+                    modifier = Modifier.weight(1f),
+                )
+                OutlinedTextField(
+                    state.rxQuantityDispensed,
+                    { v -> viewModel.update { it.copy(rxQuantityDispensed = v) } },
+                    label = { Text("Bought so far") },
+                    modifier = Modifier.weight(1f),
+                )
+            }
+            rxLeftHint(state.rxQuantityPrescribed, state.rxQuantityDispensed)?.let {
+                Text(it, style = androidx.compose.material3.MaterialTheme.typography.bodySmall)
+            }
+            OutlinedTextField(state.prescriber, { v -> viewModel.update { it.copy(prescriber = v) } }, label = { Text("Doctor") }, modifier = Modifier.fillMaxWidth())
+            TextButton(onClick = { showRxDate = true }) {
+                Text(state.rxDate?.let { "Prescription dated ${dateFmt.format(it)}" } ?: "Set prescription date")
             }
             Text("Pharmacy Info (Optional)", style = androidx.compose.material3.MaterialTheme.typography.titleMedium)
             OutlinedTextField(state.pharmacy, { v -> viewModel.update { it.copy(pharmacy = v) } }, label = { Text("Pharmacy") }, modifier = Modifier.fillMaxWidth())
             OutlinedTextField(state.rxNumber, { v -> viewModel.update { it.copy(rxNumber = v) } }, label = { Text("Rx number") }, modifier = Modifier.fillMaxWidth())
-            OutlinedTextField(state.refills, { v -> viewModel.update { it.copy(refills = v) } }, label = { Text("Refills remaining") }, modifier = Modifier.fillMaxWidth())
+            OutlinedTextField(state.refills, { v -> viewModel.update { it.copy(refills = v) } }, label = { Text("Refills remaining (doctor's \"refill ×N\")") }, modifier = Modifier.fillMaxWidth())
             OutlinedTextField(state.notes, { v -> viewModel.update { it.copy(notes = v) } }, label = { Text("Notes") }, modifier = Modifier.fillMaxWidth(), minLines = 2)
             Button(onClick = { viewModel.save(onSaved) }, enabled = state.canSave, modifier = Modifier.fillMaxWidth()) {
                 Text("Save")
@@ -239,6 +272,41 @@ fun AddEditMedicationScreen(
             },
             dismissButton = { TextButton(onClick = { showDate = false }) { Text("Cancel") } },
         ) { DatePicker(picker) }
+    }
+    if (showRxDate) {
+        val initial = (state.rxDate ?: LocalDate.now()).atStartOfDay(ZoneId.of("UTC")).toInstant().toEpochMilli()
+        val picker = rememberDatePickerState(initialSelectedDateMillis = initial)
+        DatePickerDialog(
+            onDismissRequest = { showRxDate = false },
+            confirmButton = {
+                TextButton(onClick = {
+                    picker.selectedDateMillis?.let { millis ->
+                        val date = Instant.ofEpochMilli(millis).atZone(ZoneId.of("UTC")).toLocalDate()
+                        viewModel.update { it.copy(rxDate = date) }
+                    }
+                    showRxDate = false
+                }) { Text("OK") }
+            },
+            dismissButton = { TextButton(onClick = { showRxDate = false }) { Text("Cancel") } },
+        ) { DatePicker(picker) }
+    }
+    state.pendingScan?.let { scan ->
+        AlertDialog(
+            onDismissRequest = { viewModel.dismissScanChoice() },
+            title = { Text("Which medication is this?") },
+            text = {
+                Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
+                    Text("The prescription lists ${scan.items.size} medications. Pick the one for this entry.")
+                    scan.items.forEach { item ->
+                        TextButton(onClick = { viewModel.applyScan(scan, item) }, modifier = Modifier.fillMaxWidth()) {
+                            Text(item.summary(), modifier = Modifier.fillMaxWidth())
+                        }
+                    }
+                }
+            },
+            confirmButton = {},
+            dismissButton = { TextButton(onClick = { viewModel.dismissScanChoice() }) { Text("Cancel") } },
+        )
     }
     timeEditIndex?.let { index ->
         val existing = state.doseTimeEntries.getOrNull(index)?.customMinutes ?: 480
@@ -280,4 +348,30 @@ private fun ChoiceField(label: String, value: String, options: List<String>, onS
             }
         }
     }
+}
+
+internal fun formUnitLabel(form: String): String = when (form) {
+    "capsule" -> "Capsules"
+    "liquid" -> "mL"
+    "patch" -> "Patches"
+    "injection" -> "Doses"
+    "inhaler" -> "Inhalers"
+    "other" -> "Units"
+    else -> "Tablets"
+}
+
+private fun stripHint(count: String, perStrip: String): String? {
+    val c = count.toDoubleOrNull() ?: return null
+    val p = perStrip.toDoubleOrNull()?.takeIf { it > 0 } ?: return null
+    val strips = kotlin.math.floor(c / p).toLong()
+    val loose = c - strips * p
+    val looseText = if (loose > 0.0) " + ${com.medcounter.ui.components.formatQty(loose)} loose" else ""
+    return "= $strips full strip${if (strips == 1L) "" else "s"}$looseText"
+}
+
+private fun rxLeftHint(prescribed: String, bought: String): String? {
+    val p = prescribed.toDoubleOrNull()?.takeIf { it > 0 } ?: return null
+    val b = bought.toDoubleOrNull() ?: 0.0
+    val left = (p - b).coerceAtLeast(0.0)
+    return "${com.medcounter.ui.components.formatQty(left)} of ${com.medcounter.ui.components.formatQty(p)} still available on this prescription"
 }

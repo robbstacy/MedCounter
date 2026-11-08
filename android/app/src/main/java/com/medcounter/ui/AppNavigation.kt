@@ -22,6 +22,8 @@ import com.medcounter.ui.screens.detail.MedicationDetailViewModel
 import com.medcounter.ui.screens.onboarding.OnboardingScreen
 import com.medcounter.ui.screens.profiles.ProfilesScreen
 import com.medcounter.ui.screens.profiles.ProfilesViewModel
+import com.medcounter.ui.screens.refills.RefillListScreen
+import com.medcounter.ui.screens.refills.RefillListViewModel
 import com.medcounter.ui.screens.settings.SettingsScreen
 import com.medcounter.ui.screens.settings.SettingsViewModel
 
@@ -51,7 +53,12 @@ fun AppNavigation(container: AppContainer) {
                 onOpenMedication = { id -> nav.navigate("detail/$id") },
                 onOpenProfiles = { nav.navigate("profiles") },
                 onOpenSettings = { nav.navigate("settings") },
+                onOpenRefillList = { nav.navigate("refills") },
             )
+        }
+        composable("refills") {
+            val vm: RefillListViewModel = viewModel(factory = simpleFactory { RefillListViewModel(container) })
+            RefillListScreen(viewModel = vm, onBack = { nav.popBackStack() })
         }
         composable(
             "detail/{medicationId}",

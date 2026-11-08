@@ -8,7 +8,10 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.automirrored.filled.Sort
 import androidx.compose.material.icons.filled.Add
+import androidx.compose.material.icons.filled.Check
+import androidx.compose.material.icons.filled.LocalPharmacy
 import androidx.compose.material.icons.filled.MoreVert
 import androidx.compose.material3.DropdownMenu
 import androidx.compose.material3.DropdownMenuItem
@@ -29,6 +32,7 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
+import com.medcounter.domain.MedicationSort
 import com.medcounter.domain.MedicationStatus
 import com.medcounter.ui.components.MedicationCard
 
@@ -40,10 +44,13 @@ fun DashboardScreen(
     onOpenMedication: (Long) -> Unit,
     onOpenProfiles: () -> Unit,
     onOpenSettings: () -> Unit,
+    onOpenRefillList: () -> Unit,
 ) {
     val profiles by viewModel.profiles.collectAsStateWithLifecycle()
     val selected by viewModel.selectedProfile.collectAsStateWithLifecycle()
     val medications by viewModel.medications.collectAsStateWithLifecycle()
+    val sort by viewModel.sort.collectAsStateWithLifecycle()
+    var sortMenu by remember { mutableStateOf(false) }
     var menuOpen by remember { mutableStateOf(false) }
     var profileMenu by remember { mutableStateOf(false) }
     val profileId = selected?.id ?: -1L
@@ -53,10 +60,33 @@ fun DashboardScreen(
             TopAppBar(
                 title = { Text("PillStock") },
                 actions = {
+                    if (profiles.isNotEmpty()) {
+                        IconButton(onClick = onOpenRefillList) {
+                            Icon(Icons.Default.LocalPharmacy, contentDescription = "Refill list")
+                        }
+                        IconButton(onClick = { sortMenu = true }) {
+                            Icon(Icons.AutoMirrored.Filled.Sort, contentDescription = "Sort: ${sort.label}")
+                        }
+                        DropdownMenu(expanded = sortMenu, onDismissRequest = { sortMenu = false }) {
+                            MedicationSort.entries.forEach { option ->
+                                DropdownMenuItem(
+                                    text = { Text(option.label) },
+                                    leadingIcon = {
+                                        if (option == sort) Icon(Icons.Default.Check, contentDescription = "Selected")
+                                    },
+                                    onClick = { viewModel.setSort(option); sortMenu = false },
+                                )
+                            }
+                        }
+                    }
                     IconButton(onClick = { menuOpen = true }) {
                         Icon(Icons.Default.MoreVert, contentDescription = "Menu")
                     }
                     DropdownMenu(expanded = menuOpen, onDismissRequest = { menuOpen = false }) {
+                        DropdownMenuItem(
+                            text = { Text("Refill list") },
+                            onClick = { menuOpen = false; onOpenRefillList() },
+                        )
                         DropdownMenuItem(
                             text = { Text("Manage profiles") },
                             onClick = { menuOpen = false; onOpenProfiles() },
@@ -86,6 +116,9 @@ fun DashboardScreen(
                 item {
                     TextButton(onClick = { profileMenu = true }) {
                         Text(selected?.name ?: "Profile")
+                    }
+                    if (medications.isNotEmpty()) {
+                        Text("Sorted by: ${sort.label.lowercase()}", style = MaterialTheme.typography.labelMedium)
                     }
                     DropdownMenu(expanded = profileMenu, onDismissRequest = { profileMenu = false }) {
                         profiles.forEach { profile ->
